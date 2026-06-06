@@ -33,7 +33,7 @@ class BookmarkFragment : VMBaseFragment<TocViewModel>(R.layout.fragment_bookmark
     TocViewModel.BookmarkCallBack {
     override val viewModel by activityViewModels<TocViewModel>()
     private val binding by viewBinding(FragmentBookmarkBinding::bind)
-    private val mLayoutManager by lazy { UpLinearLayoutManager(requireContext()) }
+    private var mLayoutManager: UpLinearLayoutManager? = null
     private val adapter by lazy { BookmarkAdapter(requireContext(), this) }
     private var durChapterIndex = 0
 
@@ -48,6 +48,7 @@ class BookmarkFragment : VMBaseFragment<TocViewModel>(R.layout.fragment_bookmark
 
     private fun initRecyclerView() {
         binding.recyclerView.setEdgeEffectColor(primaryColor)
+        mLayoutManager = UpLinearLayoutManager(requireContext())
         binding.recyclerView.layoutManager = mLayoutManager
         binding.recyclerView.addItemDecoration(VerticalDivider(requireContext()))
         binding.recyclerView.adapter = adapter
@@ -73,7 +74,7 @@ class BookmarkFragment : VMBaseFragment<TocViewModel>(R.layout.fragment_bookmark
                         scrollPos = index
                     }
                 }
-                mLayoutManager.scrollToPositionWithOffset(scrollPos, 0)
+                mLayoutManager?.scrollToPositionWithOffset(scrollPos, 0)
             }
         }
     }
