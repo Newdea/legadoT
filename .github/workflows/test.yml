@@ -113,9 +113,9 @@ jobs:
           mkdir -p ${{ github.workspace }}/apk/
           for file in `ls ${{ github.workspace }}/app/build/outputs/apk/*/*/*.apk`; do
             base=$(basename "$file" .apk)
-            abi=$(echo "$base" | grep -oE 'arm64-v8a|armeabi-v7a' || true)
+            abi=$(echo "$base" | grep -oE 'arm64-v8a|armeabi-v7a|x86_64|x86' || true)
             if [ -z "$abi" ]; then
-              abi="universal"
+              echo "Unable to determine ABI from APK: $base.apk"; exit 1
             fi
             mv "$file" ${{ github.workspace }}/apk/legado_${{ env.product }}_${{ env.VERSIONL }}_${abi}_$typeName.apk
           done
