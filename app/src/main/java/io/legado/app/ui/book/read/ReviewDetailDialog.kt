@@ -83,7 +83,6 @@ import io.legado.app.ui.widget.dialog.PhotoDialog
 import kotlinx.coroutines.Dispatchers.IO
 import kotlinx.coroutines.Dispatchers.Main
 import org.json.JSONArray
-import org.json.JSONObject
 import kotlin.math.max
 import kotlin.math.roundToInt
 import splitties.systemservices.windowManager
@@ -1301,7 +1300,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                         source, book, chapter, paragraphNum, paraData, page
                     )?.let { result ->
                         ReviewResult(
-                            items = result.first.map { convertJsReviewItemToUi(it) },
+                            items = result.first.map { convertJsReviewItemToUi(it, chapter.url) },
                             nextPageUrl = result.second,
                             hasNextPageRule = result.second != null
                         )
@@ -1541,14 +1540,13 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         val hasNextPageRule: Boolean
     )
 
-    /**
-     * 引擎层 JsSourceReview.ReviewDetailItem 转 UI 层 ReviewDetailItem。
-     * badge(单值)映射为 badges 列表;JS 契约无 img/audio/time/likeCount 字段,对应 UI 字段取 null。
-     * 嵌套 replies 原样保留,由 flattenItems 按层级渲染。
-     */
-    private fun convertJsReviewItemToUi(item: JsSourceReview.ReviewDetailItem): ReviewDetailItem {
-        val replies = item.replies.map { convertJsReviewItemToUi(it) }
-        return jsReviewItemToUi(item, replies)
+    /** 引擎层 JS 评论递归转换为 UI 项，并解析 content 中的结构化媒体与计数协议。 */
+    private fun convertJsReviewItemToUi(
+        item: JsSourceReview.ReviewDetailItem,
+        baseUrl: String
+    ): ReviewDetailItem {
+        val replies = item.replies.map { convertJsReviewItemToUi(it, baseUrl) }
+        return jsReviewItemToUi(item, replies, baseUrl)
     }
 
     /** 本地乐观更新某条评论的点赞态与计数（失败时反向调用以回滚）。 */
@@ -1635,19 +1633,21 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
     private fun jsReviewItemToUi(
         item: JsSourceReview.ReviewDetailItem,
-        replies: List<ReviewDetailItem>
+        replies: List<ReviewDetailItem>,
+        baseUrl: String
     ): ReviewDetailItem {
+        val protocol = ReviewContentProtocol.parse(item.content, baseUrl)
         return ReviewDetailItem(
             id = item.id,
             avatar = item.avatar,
             name = item.name,
             badges = item.badge?.takeIf { it.isNotBlank() }?.let { listOf(it) } ?: emptyList(),
-            content = item.content,
-            imageUrl = null,
-            audioUrl = null,
-            time = null,
-            likeCount = null,
-            replyCount = null,
+            content = protocol?.text ?: item.content,
+            imageUrl = protocol?.imageUrl,
+            audioUrl = protocol?.audioUrl,
+            time = protocol?.time,
+            likeCount = protocol?.likeCount,
+            replyCount = protocol?.replyCount,
             replies = replies
         )
     }
@@ -1674,6 +1674,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         val replyToName: String? = null,
         val itemType: Int = TYPE_NORMAL,
         val parentKey: String? = null,
+        val moreCount: Int = 0,
         val pendingState: String? = null
     )
 
@@ -1685,6 +1686,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
             val loadedReplyCount = item.replies.size
             if (loadedReplyCount <= 0) return@forEach
+            val replyCount = displayedReplyCount(item.replyCount, loadedReplyCount) ?: return@forEach
 
             if (!expandedReplyParentKeys.contains(parentKey)) {
                 list.add(
@@ -1700,7 +1702,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                         likeCount = null,
                         isReply = false,
                         itemType = TYPE_MORE,
-                        parentKey = parentKey
+                        parentKey = parentKey,
+                        moreCount = replyCount
                     )
                 )
                 return@forEach
@@ -1870,15 +1873,6 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         val nextPageUrl: String?
     )
 
-    private data class ReviewContentProtocol(
-        val text: String?,
-        val imageUrl: String?,
-        val audioUrl: String?,
-        val time: String?,
-        val likeCount: Int?,
-        val replyCount: Int?
-    )
-
     private fun parseReviewDetailList(
         body: String,
         rule: ReviewRule,
@@ -1946,7 +1940,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             ?.let { NetworkUtils.getAbsoluteURL(baseUrl, it) }
         val name = safeRuleString(analyzeRule, nameRule)
         val rawContent = safeRuleString(analyzeRule, contentRule)
-        val contentProtocol = parseReviewContentProtocol(rawContent, baseUrl)
+        val contentProtocol = ReviewContentProtocol.parse(rawContent, baseUrl)
         val content = if (contentProtocol != null) {
             contentProtocol.text ?: ""
         } else {
@@ -1957,8 +1951,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         val time = contentProtocol?.time
         val id = safeRuleString(analyzeRule, idRule)
         val badges = safeRuleList(analyzeRule, badgeRule)
-        val likeCount = if (isReply) null else contentProtocol?.likeCount
-        val replyCount = if (isReply) null else contentProtocol?.replyCount
+        val likeCount = contentProtocol?.likeCount
+        val replyCount = contentProtocol?.replyCount
 
         val replies = if (!isReply && !rule.replyListRule.isNullOrBlank()) {
             val replyList = runCatching {
@@ -1993,40 +1987,6 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             replyCount = replyCount,
             replies = replies
         )
-    }
-
-    private fun parseReviewContentProtocol(raw: String?, baseUrl: String): ReviewContentProtocol? {
-        val text = raw?.trim().orEmpty()
-        if (text.isEmpty() || !text.startsWith("{") || !text.endsWith("}")) return null
-        val obj = runCatching { JSONObject(text) }.getOrNull() ?: return null
-        val t = obj.optString("text").trim().ifEmpty { null }
-        val imgRaw = obj.optString("img").trim().ifEmpty { null }
-        val audioRaw = obj.optString("audio").trim().ifEmpty { null }
-        val timeRaw = obj.optString("time").trim().ifEmpty { null }
-        val likeCountRaw = obj.opt("likeCount")
-        val replyCountRaw = obj.opt("replyCount")
-        val likeCount = parseProtocolInt(likeCountRaw)
-        val replyCount = parseProtocolInt(replyCountRaw)
-        if (t == null && imgRaw == null && audioRaw == null &&
-            timeRaw == null && likeCount == null && replyCount == null
-        ) return null
-        return ReviewContentProtocol(
-            text = t,
-            imageUrl = imgRaw?.let { NetworkUtils.getAbsoluteURL(baseUrl, it) },
-            audioUrl = audioRaw?.let { NetworkUtils.getAbsoluteURL(baseUrl, it) },
-            time = timeRaw,
-            likeCount = likeCount,
-            replyCount = replyCount
-        )
-    }
-
-    private fun parseProtocolInt(value: Any?): Int? {
-        return when (value) {
-            null, JSONObject.NULL -> null
-            is Number -> value.toInt()
-            is String -> value.trim().toIntOrNull() ?: value.trim().toDoubleOrNull()?.toInt()
-            else -> value.toString().trim().toIntOrNull() ?: value.toString().trim().toDoubleOrNull()?.toInt()
-        }
     }
 
     private fun safeRuleString(analyzeRule: AnalyzeRule, rule: String?): String? {
@@ -2134,7 +2094,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                 binding.tvReplyTo.gone()
                 binding.llFooter.gone()
                 binding.tvContent.visible()
-                binding.tvContent.text = context.getString(R.string.review_more_replies)
+                binding.tvContent.text = context.getString(R.string.review_more_replies, item.moreCount)
                 binding.tvContent.textSize = 14f
                 binding.tvContent.setTextColor(context.getCompatColor(R.color.accent))
                 binding.tvContent.setPadding(0, 0, 0, 0)
