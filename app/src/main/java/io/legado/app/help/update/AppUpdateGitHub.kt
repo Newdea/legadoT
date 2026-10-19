@@ -13,8 +13,14 @@ import io.legado.app.help.http.text
 import io.legado.app.utils.GSON
 import io.legado.app.utils.fromJsonArray
 import io.legado.app.utils.fromJsonObject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.launch
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import kotlin.coroutines.coroutineContext
 
@@ -22,8 +28,10 @@ import kotlin.coroutines.coroutineContext
 @Suppress("unused")
 object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
 
-    private val manifestUrls = listOf(
-        "https://skybook.qzz.io/legado-download/update.json"
+    internal val manifestUrls = listOf(
+        "https://skybook.qzz.io/legado-download/update.json",
+        "https://skybook1.top/legado-download/update.json",
+        "https://skybook.de5.net/legado-download/update.json"
     )
 
     private const val githubReleasesUrl =
@@ -41,42 +49,32 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
         get() = if (checkVariant.isBeta()) "beta" else "release"
 
     private suspend fun getManifestUpdate(): UpdateManifestResult {
-        var lastError: Throwable? = null
-        manifestUrls.forEach { manifestUrl ->
-            try {
-                val url = manifestUrl.toHttpUrl().newBuilder()
-                    .addQueryParameter("channel", checkChannel)
-                    .build()
-                val res = okHttpClient.newCallResponse {
-                    url(url)
+        return firstAvailableManifest(manifestUrls) { manifestUrl ->
+            val url = manifestUrl.toHttpUrl().newBuilder()
+                .addQueryParameter("channel", checkChannel)
+                .build()
+            val response = okHttpClient.newCallResponse {
+                url(url)
+            }
+            response.use {
+                if (!it.isSuccessful) {
+                    return@firstAvailableManifest UpdateManifestResult.Unavailable(
+                        "获取更新清单出错(${it.code})"
+                    )
                 }
-                if (!res.isSuccessful) {
-                    lastError = NoStackTraceException("获取更新清单出错(${res.code})")
-                    return@forEach
-                }
-                val body = res.body.text()
+                val body = it.body.text()
                 if (body.isBlank()) {
-                    lastError = NoStackTraceException("获取更新清单出错")
-                    return@forEach
+                    return@firstAvailableManifest UpdateManifestResult.Unavailable("获取更新清单出错")
                 }
-                val manifest = GSON.fromJsonObject<UpdateManifest>(body)
-                    .getOrElse {
-                        lastError = it
-                        return@forEach
-                    }
-                return UpdateManifestSelector.toUpdateResult(
+                val manifest = GSON.fromJsonObject<UpdateManifest>(body).getOrThrow()
+                UpdateManifestSelector.toUpdateResult(
                     manifest = manifest,
                     currentVersionName = AppConst.appInfo.versionName,
                     currentVersionCode = AppConst.appInfo.versionCode,
                     supportedAbis = Build.SUPPORTED_ABIS.toList()
                 )
-            } catch (e: Throwable) {
-                lastError = e
             }
         }
-        return UpdateManifestResult.Unavailable(
-            lastError?.localizedMessage ?: "获取更新清单出错"
-        )
     }
 
     /**
@@ -125,4 +123,42 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
             }
         }.timeout(30000)
     }
+}
+
+internal suspend fun firstAvailableManifest(
+    urls: List<String>,
+    fetch: suspend (String) -> UpdateManifestResult
+): UpdateManifestResult = coroutineScope {
+    if (urls.isEmpty()) {
+        return@coroutineScope UpdateManifestResult.Unavailable("获取更新清单出错")
+    }
+
+    val parentJob = coroutineContext[Job]
+    val results = Channel<UpdateManifestResult>(urls.size)
+    val requests = urls.map { url ->
+        launch {
+            try {
+                results.trySend(fetch(url))
+            } catch (e: CancellationException) {
+                parentJob?.ensureActive()
+                results.trySend(UpdateManifestResult.Unavailable(e.localizedMessage ?: "获取更新清单出错"))
+            } catch (e: Throwable) {
+                results.trySend(UpdateManifestResult.Unavailable(e.localizedMessage ?: "获取更新清单出错"))
+            }
+        }
+    }
+
+    var lastError = "获取更新清单出错"
+    repeat(urls.size) {
+        when (val result = results.receive()) {
+            is UpdateManifestResult.HasUpdate,
+            UpdateManifestResult.NoUpdate -> {
+                requests.forEach { it.cancel() }
+                requests.forEach { it.cancelAndJoin() }
+                return@coroutineScope result
+            }
+            is UpdateManifestResult.Unavailable -> lastError = result.message
+        }
+    }
+    UpdateManifestResult.Unavailable(lastError)
 }
