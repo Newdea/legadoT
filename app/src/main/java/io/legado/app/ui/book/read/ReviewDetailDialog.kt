@@ -1346,6 +1346,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             if (detailItems.isNotEmpty()) {
                 binding.rotateLoading.gone()
                 renderUiItems()
+                refreshProfilesForDisplay()
             }
         }
         if (!hasMore) return
@@ -1712,28 +1713,34 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     private fun ReviewDetailItem.withCachedProfile(): ReviewDetailItem {
         val newReplies = if (replies.isEmpty()) replies else replies.map { it.withCachedProfile() }
         val profile = nostrAuthorPubkey?.takeIf { it.isNotBlank() }?.let { NostrProfileStore.get(it) }
-        if (profile == null) {
-            return if (newReplies === replies) this else copy(replies = newReplies)
-        }
-        return copy(
-            avatar = profile.picture ?: avatar,
-            name = profile.bestName ?: name,
-            replies = newReplies
-        )
+        val newAvatar = profile?.picture ?: avatar
+        val newName = profile?.bestName ?: name
+        if (newReplies == replies && newAvatar == avatar && newName == name) return this
+        return copy(avatar = newAvatar, name = newName, replies = newReplies)
     }
 
-    /** 缓存命中的先渲染；缺资料或过期的作者拉一次，拿到后刷新列表。 */
+    /** 先立即应用已有资料缓存，再拉取缺失/过期资料并更新显示。 */
     private fun refreshProfilesForDisplay() {
         val authors = collectNostrAuthors(detailItems)
         if (authors.isEmpty()) return
+        if (applyCachedProfiles()) renderUiItems()
         lifecycleScope.launch {
-            val fetched = NostrProfileStore.sync(authors)
-            if (fetched <= 0) return@launch
-            for (index in detailItems.indices) {
-                detailItems[index] = detailItems[index].withCachedProfile()
-            }
-            renderUiItems()
+            NostrProfileStore.sync(authors)
+            if (view != null && applyCachedProfiles()) renderUiItems()
         }
+    }
+
+    private fun applyCachedProfiles(): Boolean {
+        var changed = false
+        for (index in detailItems.indices) {
+            val item = detailItems[index]
+            val updated = item.withCachedProfile()
+            if (updated != item) {
+                detailItems[index] = updated
+                changed = true
+            }
+        }
+        return changed
     }
 
     private fun jsReviewItemToUi(
@@ -2257,11 +2264,24 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                 height = avatarSize
             }
 
-            if (item.avatar.isNullOrBlank()) {
-                binding.ivAvatar.gone()
-            } else {
-                binding.ivAvatar.visible()
-                ImageLoader.load(context, item.avatar).circleCrop().into(binding.ivAvatar)
+            when {
+                !item.avatar.isNullOrBlank() -> {
+                    binding.ivAvatar.visible()
+                    binding.ivAvatar.scaleType = ImageView.ScaleType.CENTER_CROP
+                    binding.ivAvatar.background = context.getDrawable(R.drawable.bg_review_avatar_placeholder)
+                    ImageLoader.load(context, item.avatar)
+                        .circleCrop()
+                        .placeholder(R.drawable.ic_review_avatar_placeholder)
+                        .error(R.drawable.ic_review_avatar_placeholder)
+                        .into(binding.ivAvatar)
+                }
+                else -> {
+                    binding.ivAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE
+                    binding.ivAvatar.visible()
+                    ImageLoader.load(context, R.drawable.ic_review_avatar_placeholder)
+                        .into(binding.ivAvatar)
+                    binding.ivAvatar.background = context.getDrawable(R.drawable.bg_review_avatar_placeholder)
+                }
             }
 
             val primaryColor = context.getCompatColor(R.color.primaryText)

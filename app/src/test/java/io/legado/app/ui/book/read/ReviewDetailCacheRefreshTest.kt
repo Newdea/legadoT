@@ -17,6 +17,19 @@ class ReviewDetailCacheRefreshTest {
     }
 
     @Test
+    fun cachedNostrProfilesAreAppliedBeforeRefreshingAndAllMissingAvatarsKeepTheirSlot() {
+        val dialog = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
+        val applyCached = dialog.indexOf("if (applyCachedProfiles()) renderUiItems()")
+        val fetchProfiles = dialog.indexOf("NostrProfileStore.sync(authors)")
+
+        assertTrue("cached profiles should be applied before network profile sync", applyCached >= 0 && fetchProfiles > applyCached)
+        assertTrue("missing avatars from every source should show a person placeholder", dialog.contains("ImageLoader.load(context, R.drawable.ic_review_avatar_placeholder)"))
+        assertTrue("missing-avatar branch should not hide the avatar view", dialog.contains("else -> {\n                    binding.ivAvatar.scaleType = ImageView.ScaleType.CENTER_INSIDE"))
+        assertTrue("failed avatar URLs should fall back to the same placeholder", dialog.contains(".error(R.drawable.ic_review_avatar_placeholder)"))
+        assertTrue("the placeholder should be a visible dedicated asset", File("src/main/res/drawable/ic_review_avatar_placeholder.xml").isFile)
+    }
+
+    @Test
     fun emptyCacheWriteRemovesOldPersistentEntry() {
         val cache = readProjectFile("src/main/java/io/legado/app/help/nostr/NostrReviewDetailCache.kt")
         assertTrue("empty cache snapshots should remove stale disk entries", cache.contains("if (snapshot.isEmpty())"))
