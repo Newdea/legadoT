@@ -1,7 +1,6 @@
 name: Test Build
 
 on:
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -99,7 +98,6 @@ jobs:
         run: python3 -m unittest discover -s .github/scripts -p 'test_check_r8_mapping.py'
 
       - name: Build With Gradle
-        continue-on-error: true
         run: |
           if [ ${{ env.type }} == 'release' ]; then
             typeName="原包名"

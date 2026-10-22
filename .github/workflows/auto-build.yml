@@ -1,0 +1,101 @@
+name: Automatic Build Check
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      RHINO_FORK_REPO: ${{ github.repository_owner }}/htmlunit-rhino-fork
+      CORE_JS_REPO: ${{ github.repository_owner }}/htmlunit-core-js
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Checkout htmlunit-rhino-fork
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.RHINO_FORK_REPO }}
+          path: htmlunit-rhino-fork
+
+      - name: Checkout htmlunit-core-js
+        uses: actions/checkout@v5
+        with:
+          repository: ${{ env.CORE_JS_REPO }}
+          path: htmlunit-core-js
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: maven
+
+      - name: Install forked htmlunit-core-js
+        working-directory: htmlunit-core-js
+        run: mvn -U clean install -Dmaven.test.skip=true -Dgpg.skip=true -Dmaven.javadoc.skip=true
+
+      - name: Configure test signing
+        run: |
+          cp "$GITHUB_WORKSPACE/.github/workflows/legado.jks" "$GITHUB_WORKSPACE/app/legado.jks"
+          cat >> "$GITHUB_WORKSPACE/gradle.properties" <<'EOF'
+          RELEASE_STORE_FILE=./legado.jks
+          RELEASE_KEY_ALIAS=legado
+          RELEASE_STORE_PASSWORD=gedoor_legado
+          RELEASE_KEY_PASSWORD=gedoor_legado
+          EOF
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Check R8 mapping checker
+        run: python3 -m unittest discover -s .github/scripts -p 'test_check_r8_mapping.py'
+
+      - name: Run unit tests and build release APK
+        run: |
+          chmod +x gradlew
+          ./gradlew :app:testAppDebugUnitTest :app:assembleAppRelease --build-cache --parallel --warning-mode all
+
+      - name: Verify R8 reflection contracts
+        run: python3 .github/scripts/check_r8_mapping.py app/build/outputs/mapping/appRelease/mapping.txt
+
+      - name: Collect APK and metadata
+        run: |
+          set -euo pipefail
+          mkdir -p auto-apk
+          mapfile -t apks < <(find app/build/outputs/apk -type f -name '*.apk')
+          if [ "${#apks[@]}" -eq 0 ]; then
+            echo "No release APK was produced"
+            exit 1
+          fi
+          cp "${apks[@]}" auto-apk/
+          version_code=$((20000 + $(git rev-list HEAD --count)))
+          cat > auto-apk/version.json <<EOF
+          {"versionCode":${version_code},"commit":"${GITHUB_SHA}","channel":"auto-build"}
+          EOF
+          ls -lh auto-apk/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: legado-auto-build-${{ github.run_number }}
+          path: auto-apk/
+          if-no-files-found: error
+          retention-days: 7
