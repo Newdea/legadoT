@@ -381,7 +381,10 @@ class NostrReviewClientTest {
             .copyOfRange(1, 33)
             .joinToString("") { "%02x".format(it) }
         val keyPair = NostrNip46.ClientKeyPair(clientSecret, clientPublic)
-        val signerPubkey = "11".repeat(32)
+        val signerSecret = ("00".repeat(31) + "02").hexToBytes()
+        val signerPubkey = fr.acinq.secp256k1.Secp256k1.pubkeyCreate(signerSecret)
+            .copyOfRange(1, 33)
+            .joinToString("") { "%02x".format(it) }
 
         val first = NostrNip46.buildGetPublicKeyRequest(keyPair, signerPubkey, createdAt = 100)
         val retry = NostrNip46.renewRequest(keyPair, signerPubkey, first)

@@ -1403,7 +1403,7 @@ Placeholders:
     <string name="rule_review_reply_avatar">Sub-comment avatar（replyAvatarRule）</string>
     <string name="rule_review_reply_name">Sub-comment name（replyNameRule）</string>
     <string name="rule_review_reply_badge">Sub-comment badge（replyBadgeRule）</string>
-    <string name="rule_review_reply_content">Sub-comment content protocol（replyContentRule, text/img/audio/time）</string>
+    <string name="rule_review_reply_content">Sub-comment content protocol（replyContentRule, text/img/audio/time/likeCount/replyCount/replyToId）</string>
     <string name="rule_post_time">Release time of paragraph comments（postTimeRule）</string>
     <string name="post_quote_url">Send a reply paragraph comment URL（postQuoteUrl）</string>
     <string name="tag_explore_enabled">Flag: found enabled</string>

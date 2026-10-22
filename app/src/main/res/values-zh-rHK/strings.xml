@@ -1069,7 +1069,7 @@
     <string name="rule_review_reply_avatar">子评论头像（replyAvatarRule）</string>
     <string name="rule_review_reply_name">子评论昵称（replyNameRule）</string>
     <string name="rule_review_reply_badge">子评论徽章（replyBadgeRule）</string>
-    <string name="rule_review_reply_content">子评论内容协议（replyContentRule，text/img/audio/time）</string>
+    <string name="rule_review_reply_content">子评论内容协议（replyContentRule，text/img/audio/time/likeCount/replyCount/replyToId）</string>
     <string name="rule_avatar">段评发布者头像（avatarRule）</string>
     <string name="rule_post_time">段评发布时间（postTimeRule）</string>
     <string name="post_quote_url">发送回复段评URL（postQuoteUrl）</string>

@@ -11,7 +11,8 @@ internal data class ReviewContentProtocol(
     val audioUrl: String?,
     val time: String?,
     val likeCount: Int?,
-    val replyCount: Int?
+    val replyCount: Int?,
+    val replyToId: String?
 ) {
     companion object {
         fun parse(raw: String?, baseUrl: String): ReviewContentProtocol? {
@@ -24,10 +25,11 @@ internal data class ReviewContentProtocol(
             val time = obj.stringValue("time")
             val likeCount = obj.get("likeCount").toProtocolInt()
             val replyCount = obj.get("replyCount").toProtocolInt()
+            val replyToId = obj.stringValue("replyToId")
             if (text == null && imageUrl == null && audioUrl == null &&
-                time == null && likeCount == null && replyCount == null
+                time == null && likeCount == null && replyCount == null && replyToId == null
             ) return null
-            return ReviewContentProtocol(text, imageUrl, audioUrl, time, likeCount, replyCount)
+            return ReviewContentProtocol(text, imageUrl, audioUrl, time, likeCount, replyCount, replyToId)
         }
 
         private fun com.google.gson.JsonObject.stringValue(key: String): String? =

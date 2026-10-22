@@ -1072,7 +1072,7 @@
     <string name="rule_review_reply_avatar">子評論頭像（replyAvatarRule）</string>
     <string name="rule_review_reply_name">子評論暱稱（replyNameRule）</string>
     <string name="rule_review_reply_badge">子評論徽章（replyBadgeRule）</string>
-    <string name="rule_review_reply_content">子評論內容協議（replyContentRule，text/img/audio/time）</string>
+    <string name="rule_review_reply_content">子評論內容協議（replyContentRule，text/img/audio/time/likeCount/replyCount/replyToId）</string>
     <string name="rule_avatar">段評發布者大頭貼（avatarRule）</string>
     <string name="rule_post_time">段評發布時間（postTimeRule）</string>
     <string name="post_quote_url">發送回復段評URL（postQuoteUrl）</string>

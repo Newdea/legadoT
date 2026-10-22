@@ -68,6 +68,7 @@ object NostrReviewClient {
         val likeCount: Int,
         val likedByMe: Boolean = false,
         val myReactionId: String? = null,
+        val replyToId: String? = null,
         val replies: List<Comment>
     )
 
@@ -649,7 +650,8 @@ object NostrReviewClient {
     private fun NostrEvent.toComment(
         likeCounts: Map<String, Int>,
         likedIds: Set<String> = emptySet(),
-        myReactionIds: Map<String, String> = emptyMap()
+        myReactionIds: Map<String, String> = emptyMap(),
+        parentCommentId: String? = null
     ): Comment = Comment(
         id = id,
         name = pubkey.take(12).ifBlank { "Nostr" },
@@ -662,7 +664,8 @@ object NostrReviewClient {
         likeCount = likeCounts[id] ?: 0,
         likedByMe = id in likedIds,
         myReactionId = myReactionIds[id],
-        replies = children.map { it.toComment(likeCounts, likedIds, myReactionIds) }
+        replyToId = parentCommentId,
+        replies = children.map { it.toComment(likeCounts, likedIds, myReactionIds, id) }
     )
 
     /** v1 书标识专用归一化（仅折叠 ASCII 空白）。历史哈希依赖它，已冻结；正文匹配请用 [normalizeContent]。 */

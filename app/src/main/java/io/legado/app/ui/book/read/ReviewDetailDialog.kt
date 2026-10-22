@@ -1546,7 +1546,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         baseUrl: String
     ): ReviewDetailItem {
         val replies = item.replies.map { convertJsReviewItemToUi(it, baseUrl) }
-        return jsReviewItemToUi(item, replies, baseUrl)
+        return jsReviewItemToUi(item, nestReviewReplies(item.id, replies), baseUrl)
     }
 
     /** 本地乐观更新某条评论的点赞态与计数（失败时反向调用以回滚）。 */
@@ -1648,7 +1648,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             time = protocol?.time,
             likeCount = protocol?.likeCount,
             replyCount = protocol?.replyCount,
-            replies = replies
+            replies = replies,
+            replyToId = protocol?.replyToId
         )
     }
 
@@ -1714,33 +1715,38 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                 replies = item.replies,
                 level = 2,
                 parentKey = parentKey,
-                replyToName = item.name
+                parentItem = item
             )
         }
         return list
     }
 
     /**
-     * 递归展开回复（含更深嵌套），最深到 [MAX_REPLY_LEVEL] 级；同级回复统一缩进。
-     * replyToName 为该级回复的对象昵称，随层级向下传递。
+     * 递归展开回复（含更深嵌套），最深到 [MAX_REPLY_LEVEL] 级；回复对象按显式父评论 ID 匹配。
      */
     private fun appendReplyItems(
         result: MutableList<ReviewUiItem>,
         replies: List<ReviewDetailItem>,
         level: Int,
         parentKey: String?,
-        replyToName: String?
+        parentItem: ReviewDetailItem
     ) {
         if (level > MAX_REPLY_LEVEL) return
         replies.forEach { reply ->
-            result.add(reply.toUiItem(level = level, parentKey = parentKey, replyToName = replyToName))
+            result.add(
+                reply.toUiItem(
+                    level = level,
+                    parentKey = parentKey,
+                    replyToName = replyTargetName(reply, parentItem)
+                )
+            )
             if (reply.replies.isNotEmpty()) {
                 appendReplyItems(
                     result = result,
                     replies = reply.replies,
                     level = level + 1,
                     parentKey = parentKey,
-                    replyToName = reply.name ?: replyToName
+                    parentItem = reply
                 )
             }
         }
@@ -1935,7 +1941,6 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         val badgeRule = if (isReply) rule.replyBadgeRule else rule.detailBadgeRule
         val contentRule = if (isReply) rule.replyContentRule else rule.detailContentRule
         val idRule = if (isReply) rule.replyIdRule else rule.detailIdRule
-
         val avatar = safeRuleString(analyzeRule, avatarRule)
             ?.let { NetworkUtils.getAbsoluteURL(baseUrl, it) }
         val name = safeRuleString(analyzeRule, nameRule)
@@ -1958,7 +1963,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             val replyList = runCatching {
                 analyzeRule.getElements(rule.replyListRule!!.trim())
             }.getOrElse { emptyList() }
-            replyList.mapNotNull {
+            val parsedReplies = replyList.mapNotNull {
                 parseReviewDetailItem(
                     analyzeRule = analyzeRule,
                     item = it,
@@ -1967,6 +1972,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                     isReply = true
                 )
             }
+            nestReviewReplies(id, parsedReplies)
         } else {
             emptyList()
         }
@@ -1985,7 +1991,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             time = time,
             likeCount = likeCount,
             replyCount = replyCount,
-            replies = replies
+            replies = replies,
+            replyToId = if (isReply) contentProtocol?.replyToId else null
         )
     }
 
