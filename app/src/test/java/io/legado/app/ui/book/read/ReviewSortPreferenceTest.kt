@@ -19,6 +19,17 @@ class ReviewSortPreferenceTest {
     }
 
     @Test
+    fun hotSortUsesLikeCountBeforeReplyCountAndTime() {
+        val dialog = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
+
+        assertTrue("hot sort should order by the current comment like count", dialog.contains("it.likeCount ?: 0"))
+        assertTrue("hot sort should use reply count only as a tie breaker", dialog.contains("it.replyCount ?: it.replies.size"))
+        assertTrue("hot sort should use time as the final tie breaker", dialog.contains("it.createdAt ?: Long.MIN_VALUE"))
+        assertTrue("hot sort should not interleave the newest comments", !dialog.contains("SORT_BATCH_SIZE"))
+        assertTrue("hot sort should not use subtree score", !dialog.contains("subtreeScore"))
+    }
+
+    @Test
     fun reviewSortModeIsLoadedAndWrittenThroughDefaultPreferences() {
         val source = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
 

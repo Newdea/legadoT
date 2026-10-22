@@ -32,9 +32,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
-import java.util.Collections
 import java.util.Date
-import java.util.IdentityHashMap
 import java.util.Locale
 import java.util.UUID
 import io.legado.app.R
@@ -1868,44 +1866,19 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     }
 
     /**
-     * 最热：hot(计分降序) 与 fresh(时间降序) 每轮各取 3 条交替拼接；
-     * 最新：纯按时间降序。
+     * 最热：按当前评论自身点赞数降序；点赞相同时按回复数、发布时间降序。
+     * 最新：按发布时间降序。
      */
     private fun computeOrderedTopLevel(): List<ReviewDetailItem> {
-        val fresh = detailItems.sortedWith(
-            compareByDescending<ReviewDetailItem> { it.createdAt ?: Long.MIN_VALUE }
-        )
-        if (reviewSortMode == SORT_NEW) return fresh
-        val hot = detailItems.sortedWith(
-            compareByDescending<ReviewDetailItem> { subtreeScore(it) }
+        if (reviewSortMode == SORT_NEW) {
+            return detailItems.sortedByDescending { it.createdAt ?: Long.MIN_VALUE }
+        }
+        return detailItems.sortedWith(
+            compareByDescending<ReviewDetailItem> { it.likeCount ?: 0 }
+                .thenByDescending { it.replyCount ?: it.replies.size }
                 .thenByDescending { it.createdAt ?: Long.MIN_VALUE }
         )
-        // hot/fresh 是同一批对象的两份排序，按对象去重；id 重复/缺失都落在这一步。
-        val usedItems = Collections.newSetFromMap(
-            IdentityHashMap<ReviewDetailItem, Boolean>()
-        )
-        val result = ArrayList<ReviewDetailItem>(detailItems.size)
-        val sources = arrayOf(ArrayDeque(hot), ArrayDeque(fresh))
-        var turn = 0
-        while (result.size < detailItems.size &&
-            (sources[0].isNotEmpty() || sources[1].isNotEmpty())
-        ) {
-            val queue = sources[turn % 2]
-            var taken = 0
-            while (queue.isNotEmpty() && taken < SORT_BATCH_SIZE) {
-                val item = queue.removeFirst()
-                if (!usedItems.add(item)) continue
-                result.add(item)
-                taken++
-            }
-            turn++
-        }
-        return result
     }
-
-    /** 计分：自身点赞数 + 每级后代「1 条回复」及其子树计分。 */
-    private fun subtreeScore(item: ReviewDetailItem): Int =
-        (item.likeCount ?: 0) + item.replies.sumOf { 1 + subtreeScore(it) }
 
     private fun ReviewDetailItem.toUiItem(
         level: Int,
@@ -1942,7 +1915,6 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         private const val SORT_HOT = 0
         private const val SORT_NEW = 1
         private const val PREF_REVIEW_SORT_MODE = "reviewSortMode"
-        private const val SORT_BATCH_SIZE = 3
         private const val NOSTR_MORE_PAGE = "nostr-more"
         /** 段评最多展示的嵌套层级（1=主评论）；第 5 级不再显示回复按钮。 */
         private const val MAX_REPLY_LEVEL = 5
