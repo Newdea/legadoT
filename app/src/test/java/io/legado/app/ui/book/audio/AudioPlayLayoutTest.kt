@@ -31,6 +31,14 @@ class AudioPlayLayoutTest {
     }
 
     @Test
+    fun `playback speed remains legible in the inline control`() {
+        val layoutXml = readProjectFile("src/main/res/layout/activity_audio_play.xml")
+
+        assertTrue(layoutXml.contains("android:id=\"@+id/tv_playback_speed\""))
+        assertTrue(layoutXml.contains("android:textSize=\"16sp\""))
+    }
+
+    @Test
     fun `play and pause vector resources match their names`() {
         val playXml = readProjectFile("src/main/res/drawable/ic_play_24dp.xml")
         val pauseXml = readProjectFile("src/main/res/drawable/ic_pause_24dp.xml")
