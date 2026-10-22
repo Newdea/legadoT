@@ -1,6 +1,7 @@
 package io.legado.app.ui.nostr
 
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.view.View
 import androidx.appcompat.app.AlertDialog
@@ -19,7 +20,8 @@ import io.legado.app.help.nostr.NostrRelays
 import io.legado.app.help.nostr.NostrSignerStore
 import io.legado.app.lib.dialogs.alert
 import io.legado.app.utils.QRCodeUtils
-import io.legado.app.utils.getCompatColor
+import io.legado.app.lib.theme.primaryTextColor
+import io.legado.app.lib.theme.secondaryTextColor
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.toastOnUi
@@ -58,9 +60,11 @@ class NostrSignerDialogController(
         connectedNotified = false
         val context = fragment.requireContext()
         val binding = DialogNostrSignerBinding.inflate(fragment.layoutInflater)
-        val secondaryColor = context.getCompatColor(R.color.secondaryText)
+        val secondaryColor = context.secondaryTextColor
         binding.tvQrSummary.setTextColor(secondaryColor)
         binding.tvLocalSummary.setTextColor(secondaryColor)
+        binding.tilBunker.hintTextColor = ColorStateList.valueOf(secondaryColor)
+        binding.btnBunkerLogin.setTextColor(context.primaryTextColor)
         val external = NostrSignerStore.loadExternal()
         binding.tvLocalSummary.text = when {
             external == null && !NostrNip55.isSignerInstalled(appCtx) ->
