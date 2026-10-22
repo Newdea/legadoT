@@ -132,8 +132,6 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             field = value
             context?.putPrefInt(PREF_REVIEW_SORT_MODE, value)
         }
-    private var reviewRenderGeneration = 0
-    private var pendingReviewScrollAnchor: ReviewScrollAnchor? = null
     /** 顶层条目的展示顺序（key 见 [buildDetailItemKey]），null 表示待重算；仅在切换排序/下拉刷新/发布成功时置空，其余时刻冻结。 */
     private var sortOrder: List<String>? = null
     private var reviewSortHotView: TextView? = null
@@ -278,7 +276,6 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         binding.swipeRefresh.isEnabled = true
         binding.swipeRefresh.setColorSchemeResources(R.color.accent)
         binding.swipeRefresh.setOnRefreshListener {
-            pendingReviewScrollAnchor = null
             sortOrder = null
             loadDetailPage(paragraphNum, 1, append = false, allowCache = false)
         }
@@ -325,54 +322,10 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
     private fun switchReviewSort(mode: Int) {
         if (reviewSortMode == mode) return
-        pendingReviewScrollAnchor = captureReviewScrollAnchor()
         reviewSortMode = mode
         sortOrder = null
         refreshReviewSortChips()
-        renderUiItems()
-    }
-
-    private fun captureReviewScrollAnchor(): ReviewScrollAnchor? {
-        val layoutManager = binding.recyclerView.layoutManager as? LinearLayoutManager ?: return null
-        val position = layoutManager.findFirstVisibleItemPosition()
-        if (position == RecyclerView.NO_POSITION) return null
-        val item = adapter.getItemByLayoutPosition(position) ?: return null
-        val child = layoutManager.findViewByPosition(position) ?: return null
-        return ReviewScrollAnchor(
-            key = reviewUiItemKey(item),
-            position = position,
-            offset = layoutManager.getDecoratedTop(child) - binding.recyclerView.paddingTop
-        )
-    }
-
-    private fun restoreReviewScrollAnchor(anchor: ReviewScrollAnchor?) {
-        if (anchor == null || view == null) return
-        val items = adapter.getItems()
-        val position = items.indexOfFirst { reviewUiItemKey(it) == anchor.key }
-            .takeIf { it >= 0 }
-            ?: anchor.position.coerceIn(0, (items.size - 1).coerceAtLeast(0))
-        if (items.isNotEmpty()) {
-            (binding.recyclerView.layoutManager as? LinearLayoutManager)
-                ?.scrollToPositionWithOffset(position, anchor.offset)
-        }
-    }
-
-    private fun reviewUiItemKey(item: ReviewUiItem): String {
-        if (item.itemType == TYPE_MORE) return "more|${item.parentKey.orEmpty()}"
-        val type = if (item.isReply) "r" else "m"
-        val id = item.id?.takeIf { it.isNotBlank() }
-        if (id != null) return "$type|$id|${item.parentKey.orEmpty()}"
-        return buildString {
-            append(type)
-            append('|')
-            append(item.parentKey.orEmpty())
-            append('|')
-            append(item.name.orEmpty())
-            append('|')
-            append(item.content.orEmpty())
-            append('|')
-            append(item.time.orEmpty())
-        }
+        renderUiItems(scrollToTop = true)
     }
 
     private fun refreshReviewSortChips() {
@@ -1765,12 +1718,6 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         )
     }
 
-    private data class ReviewScrollAnchor(
-        val key: String,
-        val position: Int,
-        val offset: Int
-    )
-
     private data class ReviewUiItem(
         val id: String?,
         val avatar: String?,
@@ -1870,19 +1817,19 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         }
     }
 
-    private fun renderUiItems() {
-        val generation = ++reviewRenderGeneration
+    private fun renderUiItems(scrollToTop: Boolean = false) {
         val uiItems = flattenItems(orderedTopLevel())
         adapter.setItems(
             uiItems,
             uiItemDiffCallback,
             skipDiff = true,
             onUpdated = {
-                binding.recyclerView.post {
-                    if (generation != reviewRenderGeneration || view == null) return@post
-                    val anchor = pendingReviewScrollAnchor ?: return@post
-                    restoreReviewScrollAnchor(anchor)
-                    pendingReviewScrollAnchor = null
+                if (scrollToTop) {
+                    binding.recyclerView.post {
+                        if (view != null && adapter.itemCount > 0) {
+                            binding.recyclerView.scrollToPosition(0)
+                        }
+                    }
                 }
             }
         )
