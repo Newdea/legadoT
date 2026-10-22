@@ -24,6 +24,7 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import androidx.appcompat.widget.AppCompatImageButton
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.flexbox.FlexboxLayout
@@ -68,6 +69,8 @@ import io.legado.app.utils.gone
 import io.legado.app.utils.isAbsUrl
 import io.legado.app.utils.isDataUrl
 import io.legado.app.utils.getCompatColor
+import io.legado.app.utils.getPrefInt
+import io.legado.app.utils.putPrefInt
 import io.legado.app.utils.postEvent
 import io.legado.app.utils.longToastOnUi
 import io.legado.app.utils.observeEvent
@@ -125,6 +128,12 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
     private val expandedReplyParentKeys = HashSet<String>()
     private var reviewSortMode = SORT_HOT
+        set(value) {
+            field = value
+            context?.putPrefInt(PREF_REVIEW_SORT_MODE, value)
+        }
+    private var reviewRenderGeneration = 0
+    private var pendingReviewScrollAnchor: ReviewScrollAnchor? = null
     /** 顶层条目的展示顺序（key 见 [buildDetailItemKey]），null 表示待重算；仅在切换排序/下拉刷新/发布成功时置空，其余时刻冻结。 */
     private var sortOrder: List<String>? = null
     private var reviewSortHotView: TextView? = null
@@ -203,6 +212,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         paragraphNum = arguments?.getInt("paragraphNum") ?: 0
+        reviewSortMode = requireContext().getPrefInt(PREF_REVIEW_SORT_MODE)
+            .takeIf { it == SORT_NEW } ?: SORT_HOT
         totalCount = arguments?.getInt("totalCount") ?: 0
         binding.root.setBackgroundResource(R.drawable.bg_dialog_round_top)
         binding.dragHandle.visible()
@@ -267,6 +278,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         binding.swipeRefresh.isEnabled = true
         binding.swipeRefresh.setColorSchemeResources(R.color.accent)
         binding.swipeRefresh.setOnRefreshListener {
+            pendingReviewScrollAnchor = null
             sortOrder = null
             loadDetailPage(paragraphNum, 1, append = false)
         }
@@ -313,10 +325,54 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
     private fun switchReviewSort(mode: Int) {
         if (reviewSortMode == mode) return
+        pendingReviewScrollAnchor = captureReviewScrollAnchor()
         reviewSortMode = mode
         sortOrder = null
         refreshReviewSortChips()
         renderUiItems()
+    }
+
+    private fun captureReviewScrollAnchor(): ReviewScrollAnchor? {
+        val layoutManager = binding.recyclerView.layoutManager as? LinearLayoutManager ?: return null
+        val position = layoutManager.findFirstVisibleItemPosition()
+        if (position == RecyclerView.NO_POSITION) return null
+        val item = adapter.getItemByLayoutPosition(position) ?: return null
+        val child = layoutManager.findViewByPosition(position) ?: return null
+        return ReviewScrollAnchor(
+            key = reviewUiItemKey(item),
+            position = position,
+            offset = layoutManager.getDecoratedTop(child) - binding.recyclerView.paddingTop
+        )
+    }
+
+    private fun restoreReviewScrollAnchor(anchor: ReviewScrollAnchor?) {
+        if (anchor == null || view == null) return
+        val items = adapter.getItems()
+        val position = items.indexOfFirst { reviewUiItemKey(it) == anchor.key }
+            .takeIf { it >= 0 }
+            ?: anchor.position.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+        if (items.isNotEmpty()) {
+            (binding.recyclerView.layoutManager as? LinearLayoutManager)
+                ?.scrollToPositionWithOffset(position, anchor.offset)
+        }
+    }
+
+    private fun reviewUiItemKey(item: ReviewUiItem): String {
+        if (item.itemType == TYPE_MORE) return "more|${item.parentKey.orEmpty()}"
+        val type = if (item.isReply) "r" else "m"
+        val id = item.id?.takeIf { it.isNotBlank() }
+        if (id != null) return "$type|$id|${item.parentKey.orEmpty()}"
+        return buildString {
+            append(type)
+            append('|')
+            append(item.parentKey.orEmpty())
+            append('|')
+            append(item.name.orEmpty())
+            append('|')
+            append(item.content.orEmpty())
+            append('|')
+            append(item.time.orEmpty())
+        }
     }
 
     private fun refreshReviewSortChips() {
@@ -1653,6 +1709,12 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         )
     }
 
+    private data class ReviewScrollAnchor(
+        val key: String,
+        val position: Int,
+        val offset: Int
+    )
+
     private data class ReviewUiItem(
         val id: String?,
         val avatar: String?,
@@ -1753,8 +1815,21 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     }
 
     private fun renderUiItems() {
+        val generation = ++reviewRenderGeneration
         val uiItems = flattenItems(orderedTopLevel())
-        adapter.setItems(uiItems, uiItemDiffCallback, skipDiff = true)
+        adapter.setItems(
+            uiItems,
+            uiItemDiffCallback,
+            skipDiff = true,
+            onUpdated = {
+                binding.recyclerView.post {
+                    if (generation != reviewRenderGeneration || view == null) return@post
+                    val anchor = pendingReviewScrollAnchor ?: return@post
+                    restoreReviewScrollAnchor(anchor)
+                    pendingReviewScrollAnchor = null
+                }
+            }
+        )
     }
 
     /**
@@ -1863,6 +1938,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         const val TYPE_MORE = 1
         private const val SORT_HOT = 0
         private const val SORT_NEW = 1
+        private const val PREF_REVIEW_SORT_MODE = "reviewSortMode"
         private const val SORT_BATCH_SIZE = 3
         private const val NOSTR_MORE_PAGE = "nostr-more"
         /** 段评最多展示的嵌套层级（1=主评论）；第 5 级不再显示回复按钮。 */

@@ -36,8 +36,18 @@ abstract class RecyclerAdapter<ITEM, VB : ViewBinding>(protected val context: Co
     private var itemLongClickListener: ((holder: ItemViewHolder, item: ITEM) -> Boolean)? = null
 
     private var diffJob: Coroutine<*>? = null
+    @Volatile
+    private var diffGeneration = 0
 
     var itemAnimation: ItemAnimation? = null
+
+    @Synchronized
+    private fun invalidatePendingDiff(): Int {
+        diffGeneration++
+        diffJob?.cancel()
+        diffJob = null
+        return diffGeneration
+    }
 
     fun setOnItemClickListener(listener: (holder: ItemViewHolder, item: ITEM) -> Unit) {
         itemClickListener = listener
@@ -95,6 +105,7 @@ abstract class RecyclerAdapter<ITEM, VB : ViewBinding>(protected val context: Co
     @Synchronized
     fun setItems(items: List<ITEM>?) {
         kotlin.runCatching {
+            invalidatePendingDiff()
             if (this.items.isNotEmpty()) {
                 this.items.clear()
             }
@@ -110,16 +121,18 @@ abstract class RecyclerAdapter<ITEM, VB : ViewBinding>(protected val context: Co
     fun setItems(
         items: List<ITEM>?,
         itemCallback: DiffUtil.ItemCallback<ITEM>,
-        skipDiff: Boolean = false
+        skipDiff: Boolean = false,
+        onUpdated: (() -> Unit)? = null
     ) {
         kotlin.runCatching {
+            val generation = invalidatePendingDiff()
             val oldItems = this.items.toList()
             val itemsSize = items?.size ?: 0
             val headerCount = getHeaderCount()
             val footerCount = getFooterCount()
             val callback = object : DiffUtil.Callback() {
                 override fun getOldListSize(): Int {
-                    return itemCount
+                    return oldItems.size + headerCount + footerCount
                 }
 
                 override fun getNewListSize(): Int {
@@ -162,8 +175,10 @@ abstract class RecyclerAdapter<ITEM, VB : ViewBinding>(protected val context: Co
                 }
                 ensureActive()
                 handler.post {
+                    if (generation != diffGeneration) return@post
                     if (diffResult == null) {
                         setItems(items)
+                        onUpdated?.invoke()
                         return@post
                     }
                     if (this@RecyclerAdapter.items.isNotEmpty()) {
@@ -174,6 +189,7 @@ abstract class RecyclerAdapter<ITEM, VB : ViewBinding>(protected val context: Co
                     }
                     diffResult.dispatchUpdatesTo(this@RecyclerAdapter)
                     onCurrentListChanged()
+                    onUpdated?.invoke()
                 }
             }
         }
