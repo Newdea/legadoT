@@ -280,7 +280,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         binding.swipeRefresh.setOnRefreshListener {
             pendingReviewScrollAnchor = null
             sortOrder = null
-            loadDetailPage(paragraphNum, 1, append = false)
+            loadDetailPage(paragraphNum, 1, append = false, allowCache = false)
         }
         loadDetailPage(paragraphNum, 1, append = false)
     }
@@ -1309,7 +1309,12 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         }
     }
 
-    private fun loadDetailPage(paragraphNum: Int, page: Int, append: Boolean) {
+    private fun loadDetailPage(
+        paragraphNum: Int,
+        page: Int,
+        append: Boolean,
+        allowCache: Boolean = true
+    ) {
         if (isLoading) {
             binding.swipeRefresh.isRefreshing = false
             return
@@ -1325,11 +1330,13 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             mainItemIndexByKey.clear()
             detailItems.clear()
             expandedReplyParentKeys.clear()
-            // 先渲染上次的首页内容（内存→落盘），联网结果回来后再合并刷新
-            val cached = ReadBook.book?.let { book ->
+            // 普通打开先渲染首页缓存；手动刷新跳过缓存，等待联网快照替换旧数据。
+            val cached = if (allowCache) ReadBook.book?.let { book ->
                 NostrReviewDetailCache.get(
                     NostrReviewDetailCache.key(book.bookUrl, ReadBook.durChapterIndex, paragraphNum)
                 )
+            } else {
+                null
             }
             if (!cached.isNullOrEmpty()) {
                 mergeDetailItems(cached)
@@ -1450,24 +1457,38 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                     nostrHasMore -> NOSTR_MORE_PAGE
                     else -> null
                 },
-                hasNextPageRule = sourceResult?.hasNextPageRule == true || nostrResult?.hasNextPageRule == true
+                hasNextPageRule = sourceResult?.hasNextPageRule == true || nostrResult?.hasNextPageRule == true,
+                refreshedSource = sourceResult != null,
+                refreshedNostr = nostrResult != null
             )
         }.onSuccess(Main) { result ->
             if (!append) {
                 binding.rotateLoading.gone()
             }
-            val items = result?.items.orEmpty()
-            val nextUrlFromRule = result?.nextPageUrl
-            if (result?.hasNextPageRule == true) {
+            if (result == null) {
+                isLoading = false
+                binding.swipeRefresh.isRefreshing = false
+                return@onSuccess
+            }
+            val items = result.items
+            val nextUrlFromRule = result.nextPageUrl
+            if (result.hasNextPageRule) {
                 nextPageUrl = nextUrlFromRule
                 if (nextUrlFromRule.isNullOrBlank()) {
                     hasMore = false
                 }
             }
-            if (items.isEmpty() && !append && detailItems.isEmpty()) {
+            if (items.isEmpty() && !append) {
+                replaceRefreshedDetailItems(emptyList(), result)
+                cacheCurrentDetailItems()
+                renderUiItems()
                 hasMore = false
-                binding.tvMsg.text = getString(R.string.content_empty)
-                binding.tvMsg.visible()
+                if (detailItems.isEmpty()) {
+                    binding.tvMsg.text = getString(R.string.content_empty)
+                    binding.tvMsg.visible()
+                } else {
+                    binding.tvMsg.gone()
+                }
                 isLoading = false
                 binding.swipeRefresh.isRefreshing = false
                 return@onSuccess
@@ -1478,7 +1499,11 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                 binding.swipeRefresh.isRefreshing = false
                 return@onSuccess
             }
-            val mergedCount = mergeDetailItems(items)
+            val mergedCount = if (!append && page == 1) {
+                replaceRefreshedDetailItems(items, result)
+            } else {
+                mergeDetailItems(items)
+            }
             if (mergedCount == 0 && append) {
                 hasMore = false
                 isLoading = false
@@ -1489,13 +1514,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             renderUiItems()
             refreshProfilesForDisplay()
             if (!append && page == 1) {
-                val book = ReadBook.book
-                if (book != null) {
-                    val cacheKey = NostrReviewDetailCache.key(
-                        book.bookUrl, ReadBook.durChapterIndex, paragraphNum
-                    )
-                    NostrReviewDetailCache.put(cacheKey, ArrayList(detailItems))
-                }
+                cacheCurrentDetailItems()
             }
             isLoading = false
             binding.swipeRefresh.isRefreshing = false
@@ -1530,6 +1549,34 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             append('|')
             append(item.audioUrl.orEmpty())
         }
+    }
+
+    /** 首页联网结果只替换本次成功刷新的后端，其余后端和本地待发布项保留。 */
+    private fun replaceRefreshedDetailItems(
+        newItems: List<ReviewDetailItem>,
+        result: ReviewResult
+    ): Int {
+        val oldItems = detailItems.toList()
+        detailItems.clear()
+        detailItems.addAll(oldItems.filter { item ->
+            item.pendingState != null ||
+                item.nostrAuthorPubkey.isNullOrBlank() && !result.refreshedSource ||
+                !item.nostrAuthorPubkey.isNullOrBlank() && !result.refreshedNostr
+        })
+        mainItemIndexByKey.clear()
+        reindexMainItems()
+        val changed = mergeDetailItems(newItems)
+        syncPendingItems()
+        reindexMainItems()
+        return changed
+    }
+
+    private fun cacheCurrentDetailItems() {
+        val book = ReadBook.book ?: return
+        val cacheKey = NostrReviewDetailCache.key(
+            book.bookUrl, ReadBook.durChapterIndex, paragraphNum
+        )
+        NostrReviewDetailCache.put(cacheKey, detailItems)
     }
 
     private fun mergeDetailItems(newItems: List<ReviewDetailItem>): Int {
@@ -1593,7 +1640,9 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     private data class ReviewResult(
         val items: List<ReviewDetailItem>,
         val nextPageUrl: String?,
-        val hasNextPageRule: Boolean
+        val hasNextPageRule: Boolean,
+        val refreshedSource: Boolean = false,
+        val refreshedNostr: Boolean = false
     )
 
     /** 引擎层 JS 评论递归转换为 UI 项，并解析 content 中的结构化媒体与计数协议。 */

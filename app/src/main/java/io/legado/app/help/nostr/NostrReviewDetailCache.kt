@@ -45,11 +45,19 @@ internal object NostrReviewDetailCache {
 
     fun put(key: String, items: List<ReviewDetailItem>) {
         val snapshot = items.withoutPendingItems()
-        if (snapshot.isEmpty()) return
+        if (snapshot.isEmpty()) {
+            clear(key)
+            return
+        }
         synchronized(memoryCache) { memoryCache[key] = snapshot }
         runCatching {
             diskCache.put(key, detailItemsToJson(snapshot), DETAIL_CACHE_TTL_SECONDS)
         }
+    }
+
+    fun clear(key: String) {
+        synchronized(memoryCache) { memoryCache.remove(key) }
+        runCatching { diskCache.remove(key) }
     }
 
     /**
