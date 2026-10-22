@@ -214,6 +214,9 @@ class AudioPlayActivity :
         binding.ivAudioCache.setOnClickListener {
             showAudioCacheRangeDialog()
         }
+        binding.tvPlaybackSpeed.setOnClickListener {
+            showAudioSpeedDialog()
+        }
 
         observeEventSticky<AudioPlay.PlayMode>(EventBus.PLAY_MODE_CHANGED) {
             playMode = it
@@ -310,7 +313,7 @@ class AudioPlayActivity :
             binding.ivSkipPrevious, binding.ivSkipNext,
             binding.ivFastRewind, binding.ivFastForward,
             binding.ivPlayMode, binding.ivAudioSkip, binding.ivAudioCache,
-            binding.ivTimer, binding.ivChapter
+            binding.tvPlaybackSpeed, binding.ivTimer, binding.ivChapter
         ).forEach { PressSpringEffect.attach(it) }
     }
 
@@ -472,10 +475,12 @@ class AudioPlayActivity :
             // Slider 无二级进度语义,缓冲进度不再单独绘制
         }
         observeEventSticky<Float>(EventBus.AUDIO_SPEED) {
-            if (AudioPlaySpeed.clamp(it) == 1f) {
+            val speed = AudioPlaySpeed.clamp(it)
+            binding.tvPlaybackSpeed.text = "${AudioPlaySpeed.format(speed)}x"
+            if (speed == 1f) {
                 binding.tvSpeed.invisible()
             } else {
-                binding.tvSpeed.text = "${AudioPlaySpeed.format(it)}X"
+                binding.tvSpeed.text = "${AudioPlaySpeed.format(speed)}X"
                 binding.tvSpeed.visible()
             }
         }

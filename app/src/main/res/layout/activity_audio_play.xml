@@ -119,6 +119,24 @@
         tools:ignore="ImageContrastCheck" />
 
     <TextView
+        android:id="@+id/tv_playback_speed"
+        android:layout_width="46dp"
+        android:layout_height="46dp"
+        android:layout_marginStart="2dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:gravity="center"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:text="1x"
+        android:textColor="@color/primaryText"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        app:layout_constraintBottom_toBottomOf="@id/iv_audio_cache"
+        app:layout_constraintStart_toEndOf="@id/iv_audio_cache"
+        app:layout_constraintTop_toTopOf="@id/iv_audio_cache"
+        tools:ignore="TextContrastCheck" />
+
+    <TextView
         android:id="@+id/tv_sub_title"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
