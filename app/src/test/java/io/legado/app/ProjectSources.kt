@@ -62,5 +62,6 @@ object ProjectSources {
         candidates.firstOrNull { if (exists) it.exists() else it.isFile }
 
     private fun notFound(scope: String, path: String): String =
-        "读不到$scope文件: $path (cwd=${File("").absolutePath}, 已试相对/绝对两种工作目录)"
+        // ${scope} 必须加花括号: CJK 是合法标识符字符, $scope文件 会被解析成变量 scope文件
+        "读不到${scope}文件: $path (cwd=${File("").absolutePath}, 已试相对/绝对两种工作目录)"
 }
