@@ -1,8 +1,8 @@
 package io.legado.app.ui.dialog
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class DialogInputSpacingLayoutTest {
 
@@ -45,18 +45,18 @@ class DialogInputSpacingLayoutTest {
     }
 
     private fun assertTopMarginCount(layoutName: String, minCount: Int) {
-        val xml = readLayoutXml(layoutName)
+        val xml = ProjectSources.app("src/main/res/layout/$layoutName")
         val count = "android:layout_marginTop=\"@dimen/space_m\"".toRegex().findAll(xml).count()
         assertTrue("$layoutName should have at least $minCount spaced stacked fields, found $count", count >= minCount)
     }
 
     private fun assertContains(layoutName: String, expected: String) {
-        val xml = readLayoutXml(layoutName)
+        val xml = ProjectSources.app("src/main/res/layout/$layoutName")
         assertTrue("$layoutName should contain $expected", xml.contains(expected))
     }
 
     private fun assertElementContains(layoutName: String, anchor: String, expected: String) {
-        val xml = readLayoutXml(layoutName)
+        val xml = ProjectSources.app("src/main/res/layout/$layoutName")
         val start = xml.indexOf(anchor)
         assertTrue("$layoutName should contain $anchor", start >= 0)
         val end = xml.indexOf('>', start)
@@ -65,11 +65,4 @@ class DialogInputSpacingLayoutTest {
         assertTrue("$layoutName element $anchor should contain $expected", element.contains(expected))
     }
 
-    private fun readLayoutXml(layoutName: String): String {
-        val candidates = listOf(
-            File("src/main/res/layout/$layoutName"),
-            File("app/src/main/res/layout/$layoutName")
-        )
-        return candidates.first { it.isFile }.readText()
-    }
 }

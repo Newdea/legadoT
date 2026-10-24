@@ -1,13 +1,13 @@
 package io.legado.app.ui.widget.code
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class JsPatternKeywordTest {
 
     private val ext =
-        File("src/main/java/io/legado/app/ui/widget/code/CodeViewExtensions.kt").readText()
+        ProjectSources.app("src/main/java/io/legado/app/ui/widget/code/CodeViewExtensions.kt")
 
     @Test
     fun jsPatternCoversCoreKeywords() {

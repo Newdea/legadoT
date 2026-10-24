@@ -1,8 +1,8 @@
 package io.legado.app.base
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * 背景图加载线程哨兵:解码/模糊回到主线程同步路径会阻塞首帧,
@@ -12,7 +12,7 @@ class BackgroundImageThreadingTest {
 
     @Test
     fun `background image decodes off the main thread`() {
-        val source = File("src/main/java/io/legado/app/base/BaseActivity.kt").readText()
+        val source = ProjectSources.app("src/main/java/io/legado/app/base/BaseActivity.kt")
         val body = source.substringAfter("open fun upBackgroundImage")
         assertTrue(
             "upBackgroundImage 须在 Dispatchers.IO 上解码背景图",

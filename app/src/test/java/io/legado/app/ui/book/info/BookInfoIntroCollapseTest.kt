@@ -1,16 +1,16 @@
 package io.legado.app.ui.book.info
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class BookInfoIntroCollapseTest {
 
     @Test
     fun `metadata precedes a four line introduction in both orientations`() {
-        val header = readProjectFile("src/main/res/layout/item_book_info_header.xml")
-        val portrait = readProjectFile("src/main/res/layout/activity_book_info.xml")
-        val landscape = readProjectFile("src/main/res/layout-land/activity_book_info.xml")
+        val header = ProjectSources.app("src/main/res/layout/item_book_info_header.xml")
+        val portrait = ProjectSources.app("src/main/res/layout/activity_book_info.xml")
+        val landscape = ProjectSources.app("src/main/res/layout-land/activity_book_info.xml")
 
         val metadata = header.indexOf("@layout/view_book_info_manage_rows")
         val divider = header.indexOf("@+id/v_intro_divider")
@@ -33,8 +33,8 @@ class BookInfoIntroCollapseTest {
             assertTrue("$xml must use the shared recycler view", xml.contains("@+id/recycler_view"))
         }
 
-        val defaultStrings = readProjectFile("src/main/res/values/strings.xml")
-        val zhStrings = readProjectFile("src/main/res/values-zh/strings.xml")
+        val defaultStrings = ProjectSources.app("src/main/res/values/strings.xml")
+        val zhStrings = ProjectSources.app("src/main/res/values-zh/strings.xml")
         assertTrue(defaultStrings.contains("name=\"book_intro_expand\">Expand</string>"))
         assertTrue(defaultStrings.contains("name=\"book_intro_collapse\">Collapse</string>"))
         assertTrue(zhStrings.contains("name=\"book_intro_expand\">展开</string>"))
@@ -43,9 +43,7 @@ class BookInfoIntroCollapseTest {
 
     @Test
     fun `activity owns transient intro expansion and checks rendered overflow`() {
-        val source = readProjectFile(
-            "src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt"
-        )
+        val source = ProjectSources.app("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt")
 
         assertTrue(source.contains("private const val INTRO_COLLAPSED_LINES = 4"))
         assertTrue(source.contains("private var introExpanded = false"))
@@ -69,8 +67,4 @@ class BookInfoIntroCollapseTest {
         assertTrue(source.contains("updatePadding(bottom"))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(File(pathInApp), File("app/$pathInApp"))
-        return candidates.first { it.isFile }.readText()
-    }
 }

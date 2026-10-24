@@ -1,14 +1,14 @@
 package io.legado.app.service
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class ReadAloudSpeakingPositionSourceTest {
 
     @Test
     fun `service records live spoken char position through upTtsProgress`() {
-        val serviceKt = readProjectFile("src/main/java/io/legado/app/service/BaseReadAloudService.kt")
+        val serviceKt = ProjectSources.app("src/main/java/io/legado/app/service/BaseReadAloudService.kt")
 
         // The service is the durable source of truth for the current spoken char position,
         // so a recreated Activity can jump back even before observing a TTS_PROGRESS event.
@@ -19,7 +19,7 @@ class ReadAloudSpeakingPositionSourceTest {
 
     @Test
     fun `read aloud facade exposes spoken char position`() {
-        val readAloudKt = readProjectFile("src/main/java/io/legado/app/model/ReadAloud.kt")
+        val readAloudKt = ProjectSources.app("src/main/java/io/legado/app/model/ReadAloud.kt")
 
         assertTrue(readAloudKt.contains("val readAloudChapterStart"))
         assertTrue(readAloudKt.contains("BaseReadAloudService.readAloudChapterStart"))
@@ -27,7 +27,7 @@ class ReadAloudSpeakingPositionSourceTest {
 
     @Test
     fun `back to speaking position prefers observer cache and falls back to service position`() {
-        val activityKt = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReadBookActivity.kt")
+        val activityKt = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/ReadBookActivity.kt")
             .replace(Regex("\\s+"), " ")
 
         // Lock the precedence: observer cache first, service live position as fallback.
@@ -39,11 +39,4 @@ class ReadAloudSpeakingPositionSourceTest {
         )
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(
-            File(pathInApp),
-            File("app/$pathInApp")
-        )
-        return candidates.first { it.isFile }.readText()
-    }
 }

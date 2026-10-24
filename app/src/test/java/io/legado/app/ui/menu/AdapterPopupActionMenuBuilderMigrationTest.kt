@@ -1,15 +1,15 @@
 package io.legado.app.ui.menu
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class AdapterPopupActionMenuBuilderMigrationTest {
 
     @Test
     fun `popup action menu builder provides shared vertical menu defaults`() {
-        val kt = readProjectFile("src/main/java/io/legado/app/ui/widget/PopupActionMenu.kt")
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/widget/PopupActionMenu.kt")
 
         assertContains("PopupActionMenu.kt", kt, "class PopupActionMenuBuilder")
         assertContains("PopupActionMenu.kt", kt, "fun item(")
@@ -23,7 +23,7 @@ class AdapterPopupActionMenuBuilderMigrationTest {
     @Test
     fun `adapter row menus use popup action menu builder instead of platform popup menu`() {
         adapterMenuFiles.forEach { path ->
-            val kt = readProjectFile(path)
+            val kt = ProjectSources.app(path)
 
             assertFalse("$path should not import PopupMenu", kt.contains("import android.widget.PopupMenu"))
             assertFalse("$path should not import AppCompat PopupMenu", kt.contains("import androidx.appcompat.widget.PopupMenu"))
@@ -44,7 +44,7 @@ class AdapterPopupActionMenuBuilderMigrationTest {
             "src/main/java/io/legado/app/ui/book/toc/rule/TxtTocRuleAdapter.kt" to "danger(\"del\")",
             "src/main/java/io/legado/app/ui/autoTask/AutoTaskAdapter.kt" to "danger(\"delete\")"
         ).forEach { (path, expected) ->
-            assertContains(path, readProjectFile(path), expected)
+            assertContains(path, ProjectSources.app(path), expected)
         }
     }
 
@@ -89,10 +89,10 @@ class AdapterPopupActionMenuBuilderMigrationTest {
 
     @Test
     fun `adapter row menus keep dynamic visibility and side effects`() {
-        val autoTask = readProjectFile("src/main/java/io/legado/app/ui/autoTask/AutoTaskAdapter.kt")
-        val rssSource = readProjectFile("src/main/java/io/legado/app/ui/rss/source/manage/RssSourceAdapter.kt")
-        val replaceRule = readProjectFile("src/main/java/io/legado/app/ui/replace/ReplaceRuleAdapter.kt")
-        val txtTocRule = readProjectFile("src/main/java/io/legado/app/ui/book/toc/rule/TxtTocRuleAdapter.kt")
+        val autoTask = ProjectSources.app("src/main/java/io/legado/app/ui/autoTask/AutoTaskAdapter.kt")
+        val rssSource = ProjectSources.app("src/main/java/io/legado/app/ui/rss/source/manage/RssSourceAdapter.kt")
+        val replaceRule = ProjectSources.app("src/main/java/io/legado/app/ui/replace/ReplaceRuleAdapter.kt")
+        val txtTocRule = ProjectSources.app("src/main/java/io/legado/app/ui/book/toc/rule/TxtTocRuleAdapter.kt")
 
         assertContains("AutoTaskAdapter.kt", autoTask, "visible = !task.loginUrl.isNullOrBlank()")
         assertContains("AutoTaskAdapter.kt", autoTask, "context.startActivity<SourceLoginActivity>")
@@ -113,7 +113,7 @@ class AdapterPopupActionMenuBuilderMigrationTest {
     )
 
     private fun assertMenuActions(path: String, vararg actions: Pair<String, String>) {
-        val kt = readProjectFile(path)
+        val kt = ProjectSources.app(path)
         actions.forEach { (value, callback) ->
             assertBuilderAction(path, kt, value, callback)
         }
@@ -198,11 +198,4 @@ class AdapterPopupActionMenuBuilderMigrationTest {
         assertTrue("$name should contain $expected", text.contains(expected))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(
-            File(pathInApp),
-            File("app/$pathInApp")
-        )
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

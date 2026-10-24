@@ -1,9 +1,9 @@
 package io.legado.app.ui.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * Task 11 哨兵：CodeView 语义高亮色主题化 + 去抖 + 悬崖放宽。
@@ -25,13 +25,13 @@ class CodeHighlightThemeTest {
 
     @Test
     fun `CodeViewExtensions no longer references md_ material colors`() {
-        val src = readProjectFile("src/main/java/io/legado/app/ui/widget/code/CodeViewExtensions.kt")
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/widget/code/CodeViewExtensions.kt")
         assertFalse("CodeViewExtensions 不应再引用 md_* 材料色", src.contains("md_"))
     }
 
     @Test
     fun `day colors xml defines all code_ semantic colors`() {
-        val xml = readProjectFile("src/main/res/values/colors.xml")
+        val xml = ProjectSources.app("src/main/res/values/colors.xml")
         codeColorNames.forEach { name ->
             assertTrue("values/colors.xml 缺少 $name", xml.contains("name=\"$name\""))
         }
@@ -39,7 +39,7 @@ class CodeHighlightThemeTest {
 
     @Test
     fun `night colors xml defines all code_ semantic colors`() {
-        val xml = readProjectFile("src/main/res/values-night/colors.xml")
+        val xml = ProjectSources.app("src/main/res/values-night/colors.xml")
         codeColorNames.forEach { name ->
             assertTrue("values-night/colors.xml 缺少 $name", xml.contains("name=\"$name\""))
         }
@@ -47,13 +47,13 @@ class CodeHighlightThemeTest {
 
     @Test
     fun `CodeView extracts highlight cliff to named constant`() {
-        val src = readProjectFile("src/main/java/io/legado/app/ui/widget/code/CodeView.kt")
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/widget/code/CodeView.kt")
         assertTrue("CodeView 应含具名常量", src.contains("HIGHLIGHT_MAX_LENGTH = 8192"))
     }
 
     @Test
     fun `onTextChanged debounces like afterTextChanged`() {
-        val src = readProjectFile("src/main/java/io/legado/app/ui/widget/code/CodeView.kt")
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/widget/code/CodeView.kt")
         val onTextChangedStart = src.indexOf("override fun onTextChanged(")
         assertTrue("onTextChanged 未找到", onTextChangedStart >= 0)
         val onTextChangedEnd = src.indexOf("override fun afterTextChanged(", onTextChangedStart)
@@ -73,5 +73,4 @@ class CodeHighlightThemeTest {
         )
     }
 
-    private fun readProjectFile(path: String): String = File(path).readText()
 }

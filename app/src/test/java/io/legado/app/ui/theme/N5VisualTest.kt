@@ -1,14 +1,14 @@
 package io.legado.app.ui.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /** N5 Wave B 视觉收尾哨兵 */
 class N5VisualTest {
     @Test
     fun `app slider style tames thumb and gap`() {
-        val styles = File("src/main/res/values/styles.xml").readText()
+        val styles = ProjectSources.app("src/main/res/values/styles.xml")
         assertTrue("应定义 Widget.App.Slider", styles.contains("name=\"Widget.App.Slider\""))
         assertTrue("应去缺口 thumbTrackGapSize=0", styles.contains("thumbTrackGapSize"))
         assertTrue("应去尾端停止点 trackStopIndicatorSize", styles.contains("trackStopIndicatorSize"))
@@ -17,7 +17,7 @@ class N5VisualTest {
 
     @Test
     fun `bookmark item is carded`() {
-        val xml = File("src/main/res/layout/item_bookmark.xml").readText()
+        val xml = ProjectSources.app("src/main/res/layout/item_bookmark.xml")
         assertTrue("书签 item 应套卡片", xml.contains("Style.ItemManageCard"))
         assertTrue("卡容器应声明 surfaceContainerLow", xml.contains("surfaceContainerLow"))
         assertTrue("id 保全:tv_chapter_name", xml.contains("@+id/tv_chapter_name"))
@@ -26,7 +26,7 @@ class N5VisualTest {
 
     @Test
     fun `search content item is carded`() {
-        val xml = File("src/main/res/layout/item_search_list.xml").readText()
+        val xml = ProjectSources.app("src/main/res/layout/item_search_list.xml")
         assertTrue("书内搜索 item 应套卡片", xml.contains("Style.ItemManageCard"))
         assertTrue("id 保全:tv_search_result", xml.contains("@+id/tv_search_result"))
         assertTrue("修正约束笔误", xml.contains("constraintRight_toRightOf"))
@@ -34,16 +34,16 @@ class N5VisualTest {
 
     @Test
     fun `font item selection has stroke highlight`() {
-        val xml = File("src/main/res/layout/item_font.xml").readText()
+        val xml = ProjectSources.app("src/main/res/layout/item_font.xml")
         assertTrue("字体 item root 应为 MaterialCardView 承接描边", xml.contains("MaterialCardView"))
-        val adapter = File("src/main/java/io/legado/app/ui/font/FontAdapter.kt").readText()
+        val adapter = ProjectSources.app("src/main/java/io/legado/app/ui/font/FontAdapter.kt")
         assertTrue("选中态应设描边", adapter.contains("strokeWidth") || adapter.contains("setStrokeColor"))
     }
 
     @Test
     fun `holo selector purged from debug and page key`() {
-        val pk = File("src/main/res/layout/dialog_page_key.xml").readText()
-        val dbg = File("src/main/res/layout/activity_source_debug.xml").readText()
+        val pk = ProjectSources.app("src/main/res/layout/dialog_page_key.xml")
+        val dbg = ProjectSources.app("src/main/res/layout/activity_source_debug.xml")
         assertTrue("dialog_page_key 不应再用 Holo selector", !pk.contains("selector_fillet_btn_bg"))
         assertTrue("source_debug 不应再用 Holo selector", !dbg.contains("selector_fillet_btn_bg"))
         assertTrue("应改用 ripple 药丸", pk.contains("bg_fillet_btn"))
@@ -51,7 +51,7 @@ class N5VisualTest {
 
     @Test
     fun `rss source edit top matches book source card chip`() {
-        val xml = File("src/main/res/layout/activity_rss_source_edit.xml").readText()
+        val xml = ProjectSources.app("src/main/res/layout/activity_rss_source_edit.xml")
         assertTrue("RSS 顶部应卡片化", xml.contains("MaterialCardView"))
         assertTrue("RSS 开关应 Chip 化", xml.contains("Widget.App.Chip"))
         assertTrue("应有折叠头摘要", xml.contains("@+id/tv_top_summary"))
@@ -61,9 +61,9 @@ class N5VisualTest {
 
     @Test
     fun `book source summary card floats and import has empty icon`() {
-        val edit = File("src/main/res/layout/activity_book_source_edit.xml").readText()
+        val edit = ProjectSources.app("src/main/res/layout/activity_book_source_edit.xml")
         assertTrue("摘要卡应用 background_card 浮起", edit.contains("cardBackgroundColor=\"@color/background_card\""))
-        val dlg = File("src/main/res/layout/dialog_recycler_view.xml").readText()
+        val dlg = ProjectSources.app("src/main/res/layout/dialog_recycler_view.xml")
         assertTrue("导入弹窗空态应有图标", dlg.contains("@+id/iv_empty"))
     }
 
@@ -82,7 +82,7 @@ class N5VisualTest {
             "ui/association/OpenUrlConfirmDialog",
         )
         families.forEach {
-            val src = File("src/main/java/io/legado/app/$it.kt").readText()
+            val src = ProjectSources.app("src/main/java/io/legado/app/$it.kt")
             assertTrue("$it 应 FULL_SCREEN", src.contains("DialogForm.FULL_SCREEN"))
         }
     }
@@ -91,13 +91,13 @@ class N5VisualTest {
     fun `font sizes bound to tokens except reader canvas`() {
         val samples = listOf("dialog_sleep_timer", "activity_source_debug", "item_manage")
         samples.forEach {
-            val xml = File("src/main/res/layout/$it.xml").readText()
+            val xml = ProjectSources.app("src/main/res/layout/$it.xml")
             val active = xml.replace(Regex("<!--.*?-->", RegexOption.DOT_MATCHES_ALL), "")
             assertTrue("$it 应无 1[2-8]sp 字面量",
                 !active.contains(Regex("textSize=\"1[2-8]sp\"")))
         }
         // 红线:阅读器画布不动
-        val page = File("src/main/res/layout/view_book_page.xml").readText()
+        val page = ProjectSources.app("src/main/res/layout/view_book_page.xml")
         assertTrue("view_book_page 保留自绘字号字面量", page.contains(Regex("textSize=\"\\d+sp\"")))
     }
 }

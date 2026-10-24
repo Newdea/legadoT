@@ -1,5 +1,6 @@
 package io.legado.app.help.http
 
+import io.legado.app.ProjectSources
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
 import okhttp3.Request
@@ -10,14 +11,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 import java.util.Base64
 
 class HttpLogDecompressionTest {
 
     @Test
     fun `http logger wraps decompression interceptor`() {
-        val source = File("src/main/java/io/legado/app/help/http/HttpHelper.kt").readText()
+        val source = ProjectSources.app("src/main/java/io/legado/app/help/http/HttpHelper.kt")
         val logger = source.indexOf("builder.addInterceptor(HttpLogInterceptor)")
         val decompressor = source.indexOf("builder.addInterceptor(DecompressInterceptor)")
 

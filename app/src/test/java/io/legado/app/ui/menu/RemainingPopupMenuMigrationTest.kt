@@ -1,15 +1,15 @@
 package io.legado.app.ui.menu
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class RemainingPopupMenuMigrationTest {
 
     @Test
     fun `select action bar renders inflated menus through md3 popup action`() {
-        val kt = readProjectFile("src/main/java/io/legado/app/ui/widget/SelectActionBar.kt")
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/widget/SelectActionBar.kt")
 
         assertFalse("SelectActionBar should not show an AppCompat PopupMenu", kt.contains("selMenu?.show()"))
         assertFalse("SelectActionBar should not store an AppCompat PopupMenu instance", kt.contains("private var selMenu: PopupMenu?"))
@@ -25,7 +25,7 @@ class RemainingPopupMenuMigrationTest {
 
     @Test
     fun `select action bar keeps menu item listener contract and danger ids`() {
-        val kt = readProjectFile("src/main/java/io/legado/app/ui/widget/SelectActionBar.kt")
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/widget/SelectActionBar.kt")
 
         assertContains("SelectActionBar.kt", kt, "fun setOnMenuItemClickListener(listener: PopupMenu.OnMenuItemClickListener)")
         assertContains("SelectActionBar.kt", kt, "private var menuItemClickListener: PopupMenu.OnMenuItemClickListener? = null")
@@ -38,9 +38,9 @@ class RemainingPopupMenuMigrationTest {
 
     @Test
     fun `file cache and read activity popups use popup action menu builder`() {
-        val fileManage = readProjectFile("src/main/java/io/legado/app/ui/file/FileManageActivity.kt")
-        val cache = readProjectFile("src/main/java/io/legado/app/ui/book/cache/CacheActivity.kt")
-        val readBook = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReadBookActivity.kt")
+        val fileManage = ProjectSources.app("src/main/java/io/legado/app/ui/file/FileManageActivity.kt")
+        val cache = ProjectSources.app("src/main/java/io/legado/app/ui/book/cache/CacheActivity.kt")
+        val readBook = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/ReadBookActivity.kt")
 
         assertFalse("FileManageActivity should not import platform PopupMenu", fileManage.contains("import android.widget.PopupMenu"))
         assertFalse("FileManageActivity should not instantiate PopupMenu", fileManage.contains("PopupMenu(context, view)"))
@@ -71,7 +71,7 @@ class RemainingPopupMenuMigrationTest {
 
     @Test
     fun `unused appcompat popup coordinate helper is removed`() {
-        val kt = readProjectFile("src/main/java/io/legado/app/utils/ViewExtensions.kt")
+        val kt = ProjectSources.app("src/main/java/io/legado/app/utils/ViewExtensions.kt")
 
         assertFalse("ViewExtensions should not import MenuPopupHelper after popup migration", kt.contains("MenuPopupHelper"))
         assertFalse("ViewExtensions should not import AppCompat PopupMenu after popup migration", kt.contains("androidx.appcompat.widget.PopupMenu"))
@@ -86,7 +86,7 @@ class RemainingPopupMenuMigrationTest {
             "KeyboardToolPop.kt" to "src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt",
             "TimerSliderPopup.kt" to "src/main/java/io/legado/app/ui/book/audio/TimerSliderPopup.kt"
         ).forEach { (name, path) ->
-            val kt = readProjectFile(path)
+            val kt = ProjectSources.app(path)
 
             assertContains(name, kt, "PopupWindow")
             assertFalse("$name should not be migrated to popupActionMenu in this change", kt.contains("popupActionMenu("))
@@ -95,9 +95,9 @@ class RemainingPopupMenuMigrationTest {
 
     @Test
     fun `toolbar overflow menus are routed through md3 popup action bridge`() {
-        val bridge = readProjectFile("src/main/java/io/legado/app/utils/ToolbarOverflowMenuExtensions.kt")
-        val baseActivity = readProjectFile("src/main/java/io/legado/app/base/BaseActivity.kt")
-        val baseFragment = readProjectFile("src/main/java/io/legado/app/base/BaseFragment.kt")
+        val bridge = ProjectSources.app("src/main/java/io/legado/app/utils/ToolbarOverflowMenuExtensions.kt")
+        val baseActivity = ProjectSources.app("src/main/java/io/legado/app/base/BaseActivity.kt")
+        val baseFragment = ProjectSources.app("src/main/java/io/legado/app/base/BaseFragment.kt")
 
         assertContains("ToolbarOverflowMenuExtensions.kt", bridge, "fun Toolbar.installMd3OverflowMenu")
         assertContains("ToolbarOverflowMenuExtensions.kt", bridge, "onPrepareMenu: (Menu) -> Unit = {}")
@@ -124,8 +124,8 @@ class RemainingPopupMenuMigrationTest {
 
     @Test
     fun `popup action rows support optional leading icons for menu item migration`() {
-        val popupAction = readProjectFile("src/main/java/io/legado/app/ui/widget/PopupAction.kt")
-        val rowXml = readProjectFile("src/main/res/layout/item_popup_action.xml")
+        val popupAction = ProjectSources.app("src/main/java/io/legado/app/ui/widget/PopupAction.kt")
+        val rowXml = ProjectSources.app("src/main/res/layout/item_popup_action.xml")
 
         assertContains("PopupAction.kt", popupAction, "data class PopupActionItem")
         assertContains("PopupAction.kt", popupAction, "val icon: Drawable? = null")
@@ -166,8 +166,8 @@ class RemainingPopupMenuMigrationTest {
 
     @Test
     fun `locally inflated appcompat toolbars get automatic md3 overflow bridge`() {
-        val baseActivity = readProjectFile("src/main/java/io/legado/app/base/BaseActivity.kt")
-        val bridge = readProjectFile("src/main/java/io/legado/app/utils/ToolbarOverflowMenuExtensions.kt")
+        val baseActivity = ProjectSources.app("src/main/java/io/legado/app/base/BaseActivity.kt")
+        val bridge = ProjectSources.app("src/main/java/io/legado/app/utils/ToolbarOverflowMenuExtensions.kt")
 
         assertContains("BaseActivity.kt", baseActivity, "if (view is Toolbar)")
         assertContains("BaseActivity.kt", baseActivity, "view.installMd3OverflowMenu")
@@ -180,11 +180,4 @@ class RemainingPopupMenuMigrationTest {
         assertTrue("$name should contain $expected", text.contains(expected))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(
-            File(pathInApp),
-            File("app/$pathInApp")
-        )
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

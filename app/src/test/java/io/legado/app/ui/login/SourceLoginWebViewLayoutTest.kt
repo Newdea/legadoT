@@ -1,15 +1,15 @@
 package io.legado.app.ui.login
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class SourceLoginWebViewLayoutTest {
 
     @Test
     fun `source login text field accepts multiple lines`() {
-        val xml = readProjectFile("src/main/res/layout/item_login_field.xml")
+        val xml = ProjectSources.app("src/main/res/layout/item_login_field.xml")
 
         assertFalse(
             "Source login text fields must allow newline input",
@@ -23,8 +23,8 @@ class SourceLoginWebViewLayoutTest {
 
     @Test
     fun `web view login fragment paints runtime theme background inside transparent login activity`() {
-        val xml = readProjectFile("src/main/res/layout/fragment_web_view_login.xml")
-        val kt = readProjectFile("src/main/java/io/legado/app/ui/login/WebViewLoginFragment.kt")
+        val xml = ProjectSources.app("src/main/res/layout/fragment_web_view_login.xml")
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/login/WebViewLoginFragment.kt")
 
         assertFalse(
             "WebView login must not hard-code @color/background because user-selected theme colors live in ThemeStore",
@@ -36,11 +36,4 @@ class SourceLoginWebViewLayoutTest {
         )
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(
-            File(pathInApp),
-            File("app/$pathInApp")
-        )
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

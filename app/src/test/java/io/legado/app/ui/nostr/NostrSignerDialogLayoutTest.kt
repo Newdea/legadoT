@@ -1,16 +1,16 @@
 package io.legado.app.ui.nostr
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class NostrSignerDialogLayoutTest {
 
     @Test
     fun bunkerInputUsesFloatingHintAndReadableSingleLineLayout() {
-        val xml = readProjectFile("src/main/res/layout/dialog_nostr_signer.xml")
-        val controller = readProjectFile("src/main/java/io/legado/app/ui/nostr/NostrSignerDialogController.kt")
+        val xml = ProjectSources.app("src/main/res/layout/dialog_nostr_signer.xml")
+        val controller = ProjectSources.app("src/main/java/io/legado/app/ui/nostr/NostrSignerDialogController.kt")
         val inputStart = xml.indexOf("android:id=\"@+id/et_bunker\"")
         assertTrue("bunker field not found", inputStart >= 0)
         val inputEnd = xml.indexOf("/>" , inputStart)
@@ -30,8 +30,4 @@ class NostrSignerDialogLayoutTest {
         assertTrue("login action should use the runtime primary text color", controller.contains("binding.btnBunkerLogin.setTextColor(context.primaryTextColor)"))
     }
 
-    private fun readProjectFile(path: String): String {
-        val candidates = listOf(File(path), File("app/$path"))
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

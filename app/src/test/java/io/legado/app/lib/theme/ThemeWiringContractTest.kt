@@ -1,9 +1,9 @@
 package io.legado.app.lib.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * 路线 B 的主题接线契约(源码级):
@@ -34,7 +34,7 @@ class ThemeWiringContractTest {
 
     @Test
     fun `base theme color items all resolve through the runtime palette`() {
-        val styles = readProjectFile("src/main/res/values/styles.xml")
+        val styles = ProjectSources.app("src/main/res/values/styles.xml")
         val block = Regex("""<style name="Base\.AppTheme".*?</style>""", RegexOption.DOT_MATCHES_ALL)
             .find(styles)?.value ?: error("未找到 Base.AppTheme 样式块")
         val refs = Regex("""@color/(\w+)""").findAll(block).map { it.groupValues[1] }.toSet()
@@ -49,12 +49,12 @@ class ThemeWiringContractTest {
     @Test
     fun `every runtime palette token is referenced by res or code`() {
         val used = mutableSetOf<String>()
-        projectFile("src/main/res").walkTopDown()
+        ProjectSources.appFile("src/main/res").walkTopDown()
             .filter { it.isFile && it.extension == "xml" }
             .forEach { file ->
                 Regex("""@color/(\w+)""").findAll(file.readText()).forEach { used.add(it.groupValues[1]) }
             }
-        projectFile("src/main/java").walkTopDown()
+        ProjectSources.appFile("src/main/java").walkTopDown()
             .filter { it.isFile && (it.extension == "kt" || it.extension == "java") }
             .forEach { file ->
                 Regex("""R\.color\.(\w+)""").findAll(file.readText()).forEach { used.add(it.groupValues[1]) }
@@ -65,7 +65,7 @@ class ThemeWiringContractTest {
 
     @Test
     fun `runtime table install result is observable and resets below API 30`() {
-        val src = readProjectFile("src/main/java/io/legado/app/lib/theme/AppThemeInstaller.kt")
+        val src = ProjectSources.app("src/main/java/io/legado/app/lib/theme/AppThemeInstaller.kt")
         // install() 必须把挂载结果落位到 isRuntimeTableInstalled(成功含已缓存命中,失败 false)
         assertTrue(
             "install() 未将结果写入 isRuntimeTableInstalled",
@@ -85,7 +85,7 @@ class ThemeWiringContractTest {
 
     @Test
     fun `light text attributes do not fall back to material white placeholder selectors`() {
-        val styles = readProjectFile("src/main/res/values/styles.xml")
+        val styles = ProjectSources.app("src/main/res/values/styles.xml")
         val baseTheme = Regex("""<style name="Base\.AppTheme".*?</style>""", RegexOption.DOT_MATCHES_ALL)
             .find(styles)?.value ?: error("未找到 Base.AppTheme 样式块")
         mapOf(
@@ -98,12 +98,12 @@ class ThemeWiringContractTest {
         }
         listOf("text_primary_color" to "m3_on_surface", "text_secondary_color" to "m3_on_surface_variant")
             .forEach { (selector, token) ->
-                val xml = readProjectFile("src/main/res/color/$selector.xml")
+                val xml = ProjectSources.app("src/main/res/color/$selector.xml")
                 assertTrue(xml.contains("android:color=\"@color/$token\""))
                 assertFalse(xml.contains("@color/white"))
                 assertFalse(xml.contains("material_personalized"))
             }
-        val installer = readProjectFile("src/main/java/io/legado/app/lib/theme/AppThemeInstaller.kt")
+        val installer = ProjectSources.app("src/main/java/io/legado/app/lib/theme/AppThemeInstaller.kt")
         assertFalse("不能重新引入会覆盖文字 attr 的 PersonalizedColors overlay", Regex("""ColorResourcesOverride\s*\.\s*getInstance""").containsMatchIn(installer))
         assertFalse(Regex("""DynamicColors\s*\.\s*apply""").containsMatchIn(installer))
     }
@@ -112,7 +112,7 @@ class ThemeWiringContractTest {
         if (name in paletteTokens) return true
         if (name in staticTokens) return true
         if (!visited.add(name)) return false // 循环引用
-        val selector = projectFile("src/main/res/color/$name.xml")
+        val selector = ProjectSources.appFile("src/main/res/color/$name.xml")
         if (selector.exists()) {
             val inner = Regex("""@color/(\w+)""").findAll(selector.readText())
                 .map { it.groupValues[1] }.toList()
@@ -123,9 +123,4 @@ class ThemeWiringContractTest {
         return false
     }
 
-    private fun readProjectFile(pathInApp: String): String = projectFile(pathInApp).readText()
-
-    private fun projectFile(pathInApp: String): File {
-        return listOf(File(pathInApp), File("app/$pathInApp")).first { it.exists() }
-    }
 }

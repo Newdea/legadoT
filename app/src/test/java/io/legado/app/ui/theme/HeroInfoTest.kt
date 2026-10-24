@@ -1,8 +1,8 @@
 package io.legado.app.ui.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /** N3a 详情页门面哨兵:collapsing 骨架就位+旧形态退役(模糊蒙层/ArcView/横滚 hack) */
 class HeroInfoTest {
@@ -14,7 +14,7 @@ class HeroInfoTest {
      */
     @Test
     fun `status bar clearance reads insets at root before collapsing consumes them`() {
-        val src = File("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt").readText()
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt")
         assertTrue(
             "让位必须走 root 监听",
             src.contains("binding.root.setOnApplyWindowInsetsListenerCompat")
@@ -28,7 +28,7 @@ class HeroInfoTest {
 
     @Test
     fun `portrait uses collapsing skeleton and retires legacy composition`() {
-        val xml = File("src/main/res/layout/activity_book_info.xml").readText()
+        val xml = ProjectSources.app("src/main/res/layout/activity_book_info.xml")
         assertTrue(xml.contains("CollapsingToolbarLayout"))
         assertTrue(xml.contains("@+id/tool_bar"))
         assertTrue(xml.contains("@+id/tv_toolbar_title"))
@@ -42,17 +42,17 @@ class HeroInfoTest {
         // N3a: tv_intro 随 ll_info 迁入 item_book_info_header.xml(RecyclerView header)。
         // N5-C5: tv_change_source/tv_change_group 等管理三行进一步抽入共享 include
         // view_book_info_manage_rows.xml(land 与 header 复用),header 侧仅留 <include>。
-        val header = File("src/main/res/layout/item_book_info_header.xml").readText()
+        val header = ProjectSources.app("src/main/res/layout/item_book_info_header.xml")
         assertTrue("header 保留简介 id + 管理行 include", listOf(
             "@+id/tv_intro", "@layout/view_book_info_manage_rows",
         ).all { header.contains(it) })
-        val manageRows = File("src/main/res/layout/view_book_info_manage_rows.xml").readText()
+        val manageRows = ProjectSources.app("src/main/res/layout/view_book_info_manage_rows.xml")
         assertTrue("管理行共享布局保全换源/换组 id", listOf(
             "@+id/tv_change_source", "@+id/tv_change_group",
         ).all { manageRows.contains(it) })
         // 7fb90f943 数据诚实批: 目录区头拆为独立 item_book_info_toc_header,
         // tv_toc_view 的 View Chapters 入口由 iv_toc_open 接管
-        val tocHeader = File("src/main/res/layout/item_book_info_toc_header.xml").readText()
+        val tocHeader = ProjectSources.app("src/main/res/layout/item_book_info_toc_header.xml")
         assertTrue("目录区头独立布局保全(章节计数+完整目录入口)", listOf(
             "@+id/tv_toc_count", "@+id/iv_toc_open",
         ).all { tocHeader.contains(it) })
@@ -60,7 +60,7 @@ class HeroInfoTest {
 
     @Test
     fun `base activity overflow install has tool_bar fallback`() {
-        val base = File("src/main/java/io/legado/app/base/BaseActivity.kt").readText()
+        val base = ProjectSources.app("src/main/java/io/legado/app/base/BaseActivity.kt")
         assertTrue(base.contains("R.id.tool_bar"))
     }
 
@@ -71,9 +71,9 @@ class HeroInfoTest {
      */
     @Test
     fun `ambient header pipeline wired with eink guard`() {
-        val src = File("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt").readText()
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt")
         assertTrue("N3a 须调共享扩展(管线已抽出)", src.contains("applyAmbientBackground"))
-        val ext = File("src/main/java/io/legado/app/utils/AmbientBackground.kt").readText()
+        val ext = ProjectSources.app("src/main/java/io/legado/app/utils/AmbientBackground.kt")
         // 取色管线:双色调升级后从 extractSeed 换成 extractPalette(取前两主色),ImageSeedExtractor 仍是源
         assertTrue(ext.contains("ImageSeedExtractor.extractPalette"))
         assertTrue(ext.contains("ambientScheme"))
@@ -83,7 +83,7 @@ class HeroInfoTest {
 
     @Test
     fun `land layout is skin-aware sibling with shared ids`() {
-        val land = File("src/main/res/layout-land/activity_book_info.xml").readText()
+        val land = ProjectSources.app("src/main/res/layout-land/activity_book_info.xml")
         assertTrue("land 必须接换肤", land.contains("skin_"))
         assertTrue(!land.contains("ArcView") && !land.contains("#50000000"))
         assertTrue(listOf(
@@ -94,8 +94,8 @@ class HeroInfoTest {
 
     @Test
     fun `arcview is fully retired`() {
-        assertTrue(!File("src/main/java/io/legado/app/ui/widget/image/ArcView.kt").exists())
-        assertTrue(!File("src/main/res/values/attrs.xml").readText().contains("ArcView"))
+        assertTrue(!ProjectSources.existsApp("src/main/java/io/legado/app/ui/widget/image/ArcView.kt"))
+        assertTrue(!ProjectSources.app("src/main/res/values/attrs.xml").contains("ArcView"))
     }
 
     /**
@@ -105,11 +105,11 @@ class HeroInfoTest {
      */
     @Test
     fun `land layout uses the shared full chapter list`() {
-        val land = File("src/main/res/layout-land/activity_book_info.xml").readText()
+        val land = ProjectSources.app("src/main/res/layout-land/activity_book_info.xml")
         assertTrue("land 必须使用共享 RecyclerView", land.contains("@+id/recycler_view"))
         assertTrue("旧横屏预览区应退役", !land.contains("@+id/ll_toc_preview"))
         val activitySrc =
-            File("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt").readText()
+            ProjectSources.app("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt")
         assertTrue("点章直读必须复用 readFromChapter", activitySrc.contains("readFromChapter"))
     }
 
@@ -120,13 +120,13 @@ class HeroInfoTest {
      */
     @Test
     fun `portrait content area is a recyclerview with extracted headers`() {
-        val xml = File("src/main/res/layout/activity_book_info.xml").readText()
+        val xml = ProjectSources.app("src/main/res/layout/activity_book_info.xml")
         assertTrue("内容区应为 RecyclerView", xml.contains("@+id/recycler_view"))
         assertTrue("内容区 NestedScroll 应退役", !xml.contains("NoChildScrollNestedScrollView"))
-        val header = File("src/main/res/layout/item_book_info_header.xml").readText()
+        val header = ProjectSources.app("src/main/res/layout/item_book_info_header.xml")
         assertTrue(header.contains("@+id/tv_intro") && header.contains("@layout/view_book_info_manage_rows"))
         assertTrue(
-            File("src/main/res/layout/item_book_info_toc_header.xml").readText()
+            ProjectSources.app("src/main/res/layout/item_book_info_toc_header.xml")
                 .contains("@+id/iv_toc_sort")
         )
     }
@@ -137,7 +137,7 @@ class HeroInfoTest {
      */
     @Test
     fun `activity wires chapter list adapter with headers and reversed order`() {
-        val src = File("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt").readText()
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt")
         assertTrue(src.contains("ChapterListAdapter"))
         assertTrue(src.contains("addHeaderView"))
         assertTrue(src.contains("tocReversed"))

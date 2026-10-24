@@ -1,8 +1,8 @@
 package io.legado.app.ui.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * Wave 2 "三选一" 收敛哨兵：RotateLoading / RefreshProgressBar 外壳保名，内核换 M3 指示器。
@@ -14,21 +14,21 @@ class IndicatorUnificationTest {
 
     @Test
     fun `rotate loading is backed by m3 circular indicator`() {
-        val src = File("src/main/java/io/legado/app/ui/widget/anima/RotateLoading.kt").readText()
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/widget/anima/RotateLoading.kt")
         assertTrue(src.contains("com.google.android.material.progressindicator.CircularProgressIndicator"))
         assertTrue("hand-drawn arc must be gone", !src.contains("onDraw"))
     }
 
     @Test
     fun `refresh progress bar is backed by m3 linear indicator`() {
-        val src = File("src/main/java/io/legado/app/ui/widget/anima/RefreshProgressBar.kt").readText()
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/widget/anima/RefreshProgressBar.kt")
         assertTrue(src.contains("LinearProgressIndicator"))
         assertTrue(!src.contains("onDraw"))
     }
 
     @Test
     fun `view_loading uses m3 circular indicator`() {
-        val xml = File("src/main/res/layout/view_loading.xml").readText()
+        val xml = ProjectSources.app("src/main/res/layout/view_loading.xml")
         assertTrue(xml.contains("com.google.android.material.progressindicator.CircularProgressIndicator"))
         assertTrue(!xml.contains("ContentLoadingProgressBar"))
     }

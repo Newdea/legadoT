@@ -1,9 +1,9 @@
 package io.legado.app.ui.widget.dialog
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * 停止设置弹窗形态锚点:浮动弹窗模板、时间/集数预设等数、bottom sheet 通路退场。
@@ -12,7 +12,7 @@ class SleepTimerDialogWiringTest {
 
     @Test
     fun `sleep timer dialog is floating template not bottom sheet`() {
-        val src = readProjectFile("src/main/java/io/legado/app/ui/widget/dialog/SleepTimerDialog.kt")
+        val src = ProjectSources.app("src/main/java/io/legado/app/ui/widget/dialog/SleepTimerDialog.kt")
         assertTrue(
             "应继承 BaseDialogFragment 走浮动模板",
             src.contains("BaseDialogFragment(R.layout.dialog_sleep_timer)")
@@ -30,15 +30,11 @@ class SleepTimerDialogWiringTest {
 
     @Test
     fun `sleep timer layout drops bottom sheet artifacts and aligns chip rows`() {
-        val layout = readProjectFile("src/main/res/layout/dialog_sleep_timer.xml")
+        val layout = ProjectSources.app("src/main/res/layout/dialog_sleep_timer.xml")
         assertFalse("drag handle 应退场", layout.contains("BottomSheetDragHandleView"))
         assertFalse("Flexbox 应换等权重行", layout.contains("FlexboxLayout"))
         val weights = Regex("""android:layout_weight="1"""").findAll(layout).count()
         assertTrue("等宽 chip 行缺失(layout_weight=1 计数 $weights, 期望≥10)", weights >= 10)
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(File(pathInApp), File("app/$pathInApp"))
-        return candidates.first { it.isFile }.readText()
-    }
 }

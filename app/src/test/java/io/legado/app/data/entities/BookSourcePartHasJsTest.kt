@@ -1,13 +1,13 @@
 package io.legado.app.data.entities
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class BookSourcePartHasJsTest {
 
     private val partSource =
-        File("src/main/java/io/legado/app/data/entities/BookSourcePart.kt").readText()
+        ProjectSources.app("src/main/java/io/legado/app/data/entities/BookSourcePart.kt")
 
     @Test
     fun databaseViewExposesHasJs() {

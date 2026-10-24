@@ -1,11 +1,11 @@
 package io.legado.app.lib.skin
 
 import io.legado.app.lib.theme.AppSchemeColors
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * R2 换肤引擎三方一致性锚点:
@@ -38,7 +38,7 @@ class SkinRoleMappingTest {
     /** attrs_skin.xml 的 4 个 skin_* attr:各含全部角色,enum name=角色名,value=ordinal */
     @Test
     fun `attrs xml enums match SkinRole names and ordinals`() {
-        val xml = readProjectFile("src/main/res/values/attrs_skin.xml")
+        val xml = ProjectSources.app("src/main/res/values/attrs_skin.xml")
         val expected = SkinRole.entries.map { it.name to it.ordinal }
         val attrNames = listOf("skin_background", "skin_textColor", "skin_tint", "skin_hintColor")
         val attrBlockRegex = Regex(
@@ -74,8 +74,4 @@ class SkinRoleMappingTest {
         assertNull(SkinRole.fromAttrValue(34))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(File(pathInApp), File("app/$pathInApp"))
-        return candidates.first { it.isFile }.readText()
-    }
 }

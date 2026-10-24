@@ -1,9 +1,9 @@
 package io.legado.app.base.adapter
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * R1d 多选样板收敛锚:6 个管理页 adapter 的 selectAll/revertSelection/selection 集中到
@@ -23,7 +23,7 @@ class SelectableAdapterMigrationTest {
     @Test
     fun `six manage adapters implement SelectableAdapter and drop local select boilerplate`() {
         adapters.forEach { path ->
-            val kt = readProjectFile(path)
+            val kt = ProjectSources.app(path)
             assertTrue(
                 "$path 应实现 SelectableAdapter/SimpleSelectableAdapter",
                 kt.contains("SelectableAdapter<") || kt.contains("SimpleSelectableAdapter<")
@@ -47,16 +47,13 @@ class SelectableAdapterMigrationTest {
             "src/main/java/io/legado/app/ui/book/source/manage/BookSourceAdapter.kt",
             "src/main/java/io/legado/app/ui/rss/source/manage/RssSourceAdapter.kt",
         ).forEach {
-            assertTrue("$it 应保留 checkSelectedInterval", readProjectFile(it).contains("fun checkSelectedInterval()"))
+            assertTrue("$it 应保留 checkSelectedInterval", ProjectSources.app(it).contains("fun checkSelectedInterval()"))
         }
         assertFalse(
             "SelectableAdapter 不应含 checkSelectedInterval(覆盖面不全,不进通用契约)",
-            readProjectFile("src/main/java/io/legado/app/base/adapter/SelectableAdapter.kt")
+            ProjectSources.app("src/main/java/io/legado/app/base/adapter/SelectableAdapter.kt")
                 .contains("checkSelectedInterval")
         )
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        return listOf(File(pathInApp), File("app/$pathInApp")).first { it.isFile }.readText()
-    }
 }

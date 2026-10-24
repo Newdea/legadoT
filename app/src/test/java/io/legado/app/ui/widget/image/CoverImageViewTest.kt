@@ -1,16 +1,16 @@
 package io.legado.app.ui.widget.image
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 class CoverImageViewTest {
 
     @Test
     fun `transparent cover pixels use the current page background`() {
-        val source = projectFile("src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt").readText()
+        val source = ProjectSources.app("src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt")
 
         assertTrue(source.contains("import io.legado.app.lib.theme.backgroundColor"))
         assertTrue(source.contains("setBackgroundColor(context.backgroundColor)"))
@@ -18,7 +18,7 @@ class CoverImageViewTest {
 
     @Test
     fun `rounded clip surrounds the entire draw and restores the canvas`() {
-        val source = projectFile("src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt").readText()
+        val source = ProjectSources.app("src/main/java/io/legado/app/ui/widget/image/CoverImageView.kt")
         val draw = source.substringAfter("override fun draw(canvas: Canvas)")
             .substringBefore("override fun onDraw(canvas: Canvas)")
         val onDraw = source.substringAfter("override fun onDraw(canvas: Canvas)")
@@ -38,7 +38,7 @@ class CoverImageViewTest {
         val androidNs = "http://schemas.android.com/apk/res/android"
         listOf("item_bookshelf_grid", "item_bookshelf_grid_group", "item_explore_cover").forEach { name ->
             val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
-            val document = factory.newDocumentBuilder().parse(projectFile("src/main/res/layout/$name.xml"))
+            val document = factory.newDocumentBuilder().parse(ProjectSources.appFile("src/main/res/layout/$name.xml"))
             val card = document.getElementsByTagName("com.google.android.material.card.MaterialCardView")
                 .item(0) as org.w3c.dom.Element
             val cover = document.getElementsByTagName("io.legado.app.ui.widget.image.CoverImageView")
@@ -59,13 +59,10 @@ class CoverImageViewTest {
             "ui/main/bookshelf/style2/BooksAdapter.kt",
             "ui/main/explore/ExploreCoverAdapter.kt",
         ).forEach { path ->
-            val source = projectFile("src/main/java/io/legado/app/$path").readText()
+            val source = ProjectSources.app("src/main/java/io/legado/app/$path")
             assertTrue("$path 的封面卡仍依赖静态资源底色", source.contains(".coverCardBackgroundColor"))
             assertFalse(source.contains(".cardBackgroundColor"))
         }
     }
 
-    private fun projectFile(pathInApp: String): File {
-        return listOf(File(pathInApp), File("app/$pathInApp")).first { it.exists() }
-    }
 }

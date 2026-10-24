@@ -31,8 +31,10 @@ class HighlightRuleTest {
     @Test
     fun style_round_trips_through_json() {
         val rule = HighlightRule(pattern = "x")
-        rule.applyStyle(HighlightStyle(fill = 0x55FF0000.toInt(), bold = true))
-        assertEquals(0x55FF0000.toInt(), rule.styleObj().fill)
+        // 0x55FF0000 = 1442775040 < Int.MAX_VALUE, 本身就是 Int 字面量, 不需要 .toInt()
+        // (对比 0xFF000000.toInt() 那种超界值才需要显式转换)
+        rule.applyStyle(HighlightStyle(fill = 0x55FF0000, bold = true))
+        assertEquals(0x55FF0000, rule.styleObj().fill)
         assertTrue(rule.styleObj().bold)
     }
 

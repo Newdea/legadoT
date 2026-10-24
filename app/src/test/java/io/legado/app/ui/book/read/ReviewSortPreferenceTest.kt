@@ -1,15 +1,15 @@
 package io.legado.app.ui.book.read
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class ReviewSortPreferenceTest {
 
     @Test
     fun sortSwitchScrollsToTopAfterTheNewOrderIsApplied() {
-        val dialog = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
-        val adapter = readProjectFile("src/main/java/io/legado/app/base/adapter/RecyclerAdapter.kt")
+        val dialog = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
+        val adapter = ProjectSources.app("src/main/java/io/legado/app/base/adapter/RecyclerAdapter.kt")
 
         assertTrue("sort switch should request a top reset", dialog.contains("renderUiItems(scrollToTop = true)"))
         assertTrue("scroll reset should run after the recycler view applies its update", dialog.contains("binding.recyclerView.scrollToPosition(0)"))
@@ -20,7 +20,7 @@ class ReviewSortPreferenceTest {
 
     @Test
     fun hotSortUsesLikeCountBeforeReplyCountAndTime() {
-        val dialog = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
+        val dialog = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
 
         assertTrue("hot sort should order by the current comment like count", dialog.contains("it.likeCount ?: 0"))
         assertTrue("hot sort should use reply count only as a tie breaker", dialog.contains("it.replyCount ?: it.replies.size"))
@@ -31,7 +31,7 @@ class ReviewSortPreferenceTest {
 
     @Test
     fun reviewSortModeIsLoadedAndWrittenThroughDefaultPreferences() {
-        val source = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
+        val source = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/ReviewDetailDialog.kt")
 
         assertTrue(
             "review dialog should restore the saved sort mode",
@@ -47,8 +47,4 @@ class ReviewSortPreferenceTest {
         )
     }
 
-    private fun readProjectFile(path: String): String {
-        val candidates = listOf(File(path), File("app/$path"))
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

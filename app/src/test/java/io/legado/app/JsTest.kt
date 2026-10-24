@@ -415,7 +415,6 @@ class JsTest {
         Assert.assertEquals(x, "第七百一十四章 人头树")
     }
 
-
     @Test
     fun chapterText() {
         val chapter = BookChapter(title = "xxxyyy")

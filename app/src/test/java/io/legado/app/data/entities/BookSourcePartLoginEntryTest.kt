@@ -1,15 +1,15 @@
 package io.legado.app.data.entities
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class BookSourcePartLoginEntryTest {
 
     private val partSource =
-        File("src/main/java/io/legado/app/data/entities/BookSourcePart.kt").readText()
+        ProjectSources.app("src/main/java/io/legado/app/data/entities/BookSourcePart.kt")
     private val appDbSource =
-        File("src/main/java/io/legado/app/data/AppDatabase.kt").readText()
+        ProjectSources.app("src/main/java/io/legado/app/data/AppDatabase.kt")
 
     @Test
     fun hasLoginUrlCoversJsFormLogin() {

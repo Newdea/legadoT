@@ -1,8 +1,8 @@
 package io.legado.app.ui.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * Slider 禁用态可见性哨兵（真机验收回归实锤：状态不变的单色 tint 把门控禁用的滑杆
@@ -23,7 +23,7 @@ class SliderTintStateTest {
 
     @Test
     fun `shared slider tint extension is state aware`() {
-        val ext = File("src/main/java/io/legado/app/utils/SliderExtensions.kt").readText()
+        val ext = ProjectSources.app("src/main/java/io/legado/app/utils/SliderExtensions.kt")
         assertTrue("扩展必须存在且含禁用态状态数组", ext.contains("-android.R.attr.state_enabled"))
         assertTrue(ext.contains("fun Slider.applyAppTint"))
     }
@@ -31,7 +31,7 @@ class SliderTintStateTest {
     @Test
     fun `all slider tint sites route through applyAppTint`() {
         sliderOnlySites.forEach { path ->
-            val src = File(path).readText()
+            val src = ProjectSources.app(path)
             assertTrue("$path 应改走 applyAppTint", src.contains("applyAppTint("))
             assertTrue(
                 "$path 不得手写 slider thumbTintList（状态不变单色会掩蔽禁用态）",
@@ -39,7 +39,7 @@ class SliderTintStateTest {
             )
         }
         // 引擎文件含 SwitchCompat 的合法 thumbTintList,检查收窄到 applySliderTint 函数体
-        val engine = File("src/main/java/io/legado/app/lib/skin/SkinInflaterFactory.kt").readText()
+        val engine = ProjectSources.app("src/main/java/io/legado/app/lib/skin/SkinInflaterFactory.kt")
         val body = engine.substringAfter("private fun applySliderTint").substringBefore("}")
         assertTrue("引擎 Slider 分支应改走 applyAppTint", body.contains("applyAppTint("))
         assertTrue("引擎 applySliderTint 不得手写 thumbTintList", !body.contains("thumbTintList"))

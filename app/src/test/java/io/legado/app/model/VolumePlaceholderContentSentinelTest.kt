@@ -1,9 +1,9 @@
 package io.legado.app.model
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * 哨兵:卷占位章(isVolume 且 url 以 title 起头)的正文恒为空串,声明式与 JS 源同款。
@@ -14,9 +14,9 @@ import java.io.File
 class VolumePlaceholderContentSentinelTest {
 
     private val webBook =
-        File("../shared/src/commonMain/kotlin/io/legado/app/model/webBook/WebBook.kt").readText()
+        ProjectSources.repo("shared/src/commonMain/kotlin/io/legado/app/model/webBook/WebBook.kt")
     private val jsSourceBook =
-        File("src/main/java/io/legado/app/model/jsSource/JsSourceBook.kt").readText()
+        ProjectSources.app("src/main/java/io/legado/app/model/jsSource/JsSourceBook.kt")
 
     @Test
     fun declarativeVolumePlaceholderReturnsEmpty() {

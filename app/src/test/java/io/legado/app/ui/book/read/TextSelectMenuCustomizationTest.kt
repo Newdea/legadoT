@@ -1,17 +1,15 @@
 package io.legado.app.ui.book.read
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class TextSelectMenuCustomizationTest {
 
     @Test
     fun dialogIsDragReorderableAndPersists() {
-        val kt = readProjectFile(
-            "src/main/java/io/legado/app/ui/book/read/config/TextSelectMenuConfigDialog.kt"
-        )
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/config/TextSelectMenuConfigDialog.kt")
         assertContains("TextSelectMenuConfigDialog.kt", kt, "ItemTouchCallback(adapter)")
         assertContains("TextSelectMenuConfigDialog.kt", kt, "ItemTouchHelper")
         assertContains("TextSelectMenuConfigDialog.kt", kt, "loadTextSelectMenuConfig(")
@@ -22,9 +20,7 @@ class TextSelectMenuCustomizationTest {
 
     @Test
     fun dialogUsesPersistentDividerRows() {
-        val kt = readProjectFile(
-            "src/main/java/io/legado/app/ui/book/read/config/TextSelectMenuConfigDialog.kt"
-        )
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/config/TextSelectMenuConfigDialog.kt")
         // 分隔行("浮动条"/"更多")是常驻独立的列表行,而非寄生于首个条目
         assertContains("TextSelectMenuConfigDialog.kt", kt, "Row.Divider")
         assertContains("TextSelectMenuConfigDialog.kt", kt, "Row.Entry")
@@ -36,7 +32,7 @@ class TextSelectMenuCustomizationTest {
 
     @Test
     fun textActionMenuIsConfigDriven() {
-        val kt = readProjectFile("src/main/java/io/legado/app/ui/book/read/TextActionMenu.kt")
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/TextActionMenu.kt")
         assertContains("TextActionMenu.kt", kt, "private fun buildPartition()")
         assertContains("TextActionMenu.kt", kt, "loadTextSelectMenuConfig(context)")
         assertContains("TextActionMenu.kt", kt, "TextSelectMenuItem.menuIdOf(")
@@ -48,7 +44,7 @@ class TextSelectMenuCustomizationTest {
 
     @Test
     fun readActivityOpensEditor() {
-        val kt = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReadBookActivity.kt")
+        val kt = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/ReadBookActivity.kt")
         assertContains("ReadBookActivity.kt", kt, "override fun onEditTextActionMenu()")
         assertContains("ReadBookActivity.kt", kt, "fun showTextSelectMenuConfig()")
         assertContains("ReadBookActivity.kt", kt, "showDialogFragment(TextSelectMenuConfigDialog())")
@@ -56,14 +52,12 @@ class TextSelectMenuCustomizationTest {
 
     @Test
     fun settingsEntryReplacesExpandSwitch() {
-        val xml = readProjectFile("src/main/res/xml/pref_config_read.xml")
+        val xml = ProjectSources.app("src/main/res/xml/pref_config_read.xml")
         assertMissing("pref_config_read.xml", xml, "android:key=\"expandTextMenu\"")
         assertContains("pref_config_read.xml", xml, "android:key=\"customTextMenu\"")
         assertContains("pref_config_read.xml", xml, "@string/text_select_menu_config")
 
-        val more = readProjectFile(
-            "src/main/java/io/legado/app/ui/book/read/config/MoreConfigDialog.kt"
-        )
+        val more = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/config/MoreConfigDialog.kt")
         assertContains("MoreConfigDialog.kt", more, "\"customTextMenu\"")
         assertContains("MoreConfigDialog.kt", more, "showTextSelectMenuConfig()")
         assertMissing("MoreConfigDialog.kt", more, "PreferKey.expandTextMenu")
@@ -78,8 +72,4 @@ class TextSelectMenuCustomizationTest {
         assertFalse("$name should not contain $unexpected", text.contains(unexpected))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(File(pathInApp), File("app/$pathInApp"))
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

@@ -1,16 +1,16 @@
 package io.legado.app.ui.book.read.config
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class TipConfigDialogTemplateWiringTest {
 
     @Test
     fun `template editor layout is scrollable and exposes edit and placeholder controls`() {
-        val layout = readProjectFile("src/main/res/layout/dialog_reader_info_template.xml")
+        val layout = ProjectSources.app("src/main/res/layout/dialog_reader_info_template.xml")
 
         assertTrue(layout.contains("androidx.core.widget.NestedScrollView"))
         assertTrue(layout.contains("io.legado.app.lib.theme.view.ThemeEditText"))
@@ -24,9 +24,7 @@ class TipConfigDialogTemplateWiringTest {
 
     @Test
     fun `all reader info rows edit and summarize their matching template fields`() {
-        val source = readProjectFile(
-            "src/main/java/io/legado/app/ui/book/read/config/TipConfigDialog.kt"
-        )
+        val source = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/config/TipConfigDialog.kt")
         val pairs = mapOf(
             "llHeaderLeft" to "tipHeaderLeftTemplate" to "tipHeaderLeft",
             "llHeaderMiddle" to "tipHeaderMiddleTemplate" to "tipHeaderMiddle",
@@ -51,9 +49,7 @@ class TipConfigDialogTemplateWiringTest {
 
     @Test
     fun `value width constraint is opt in capped and recalculated on size changes`() {
-        val source = readProjectFile(
-            "src/main/java/io/legado/app/ui/widget/LabeledValueRow.kt"
-        )
+        val source = ProjectSources.app("src/main/java/io/legado/app/ui/widget/LabeledValueRow.kt")
         val compactSource = source.replace(Regex("\\s+"), " ")
 
         assertTrue(source.contains("fun constrainValueWidth(maxRowFraction: Float = 0.5f)"))
@@ -74,9 +70,7 @@ class TipConfigDialogTemplateWiringTest {
 
     @Test
     fun `editor normalizes selection and uses editable text for replace and save`() {
-        val source = readProjectFile(
-            "src/main/java/io/legado/app/ui/book/read/config/TipConfigDialog.kt"
-        )
+        val source = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/config/TipConfigDialog.kt")
         val compactSource = source.replace(Regex("\\s+"), " ").replace(" .", ".")
 
         assertTrue(source.contains("ReaderInfoTemplate.placeholders.forEach"))
@@ -102,8 +96,4 @@ class TipConfigDialogTemplateWiringTest {
     private infix fun Pair<String, String>.to(legacy: String) =
         first to (second to legacy)
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(File(pathInApp), File("app/$pathInApp"))
-        return candidates.first { it.isFile }.readText()
-    }
 }

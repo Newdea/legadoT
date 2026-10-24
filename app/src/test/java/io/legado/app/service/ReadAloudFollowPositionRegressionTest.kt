@@ -1,14 +1,14 @@
 package io.legado.app.service
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class ReadAloudFollowPositionRegressionTest {
 
     @Test
     fun contentLoadFinishPreservesAttachedSpeechNavigationWhenSpeechServiceIsRunning() {
-        val readBookKt = readProjectFile("src/main/java/io/legado/app/model/ReadBook.kt")
+        val readBookKt = ProjectSources.app("src/main/java/io/legado/app/model/ReadBook.kt")
 
         assertTrue(
             readBookKt.contains("syncReadAloudFollow = BaseReadAloudService.shouldSyncSpeechNavigation()")
@@ -20,8 +20,8 @@ class ReadAloudFollowPositionRegressionTest {
 
     @Test
     fun speechSyncGatingPreservesManualNavigationDetachAndDetachedVisiblePageBehavior() {
-        val readBookKt = readProjectFile("src/main/java/io/legado/app/model/ReadBook.kt")
-        val serviceKt = readProjectFile("src/main/java/io/legado/app/service/BaseReadAloudService.kt")
+        val readBookKt = ProjectSources.app("src/main/java/io/legado/app/model/ReadBook.kt")
+        val serviceKt = ProjectSources.app("src/main/java/io/legado/app/service/BaseReadAloudService.kt")
 
         assertTrue(readBookKt.contains("if (BaseReadAloudService.isRun && it.isCompleted)"))
         assertTrue(readBookKt.contains("if (!syncReadAloudFollow)"))
@@ -32,8 +32,8 @@ class ReadAloudFollowPositionRegressionTest {
 
     @Test
     fun mediaChapterSkipUsesReadAloudServiceCommandsWhileTtsIsRunning() {
-        val receiverKt = readProjectFile("src/main/java/io/legado/app/receiver/MediaButtonReceiver.kt")
-        val readAloudKt = readProjectFile("src/main/java/io/legado/app/model/ReadAloud.kt")
+        val receiverKt = ProjectSources.app("src/main/java/io/legado/app/receiver/MediaButtonReceiver.kt")
+        val readAloudKt = ProjectSources.app("src/main/java/io/legado/app/model/ReadAloud.kt")
 
         assertTrue(receiverKt.contains("ReadAloud.prevChapter(context)"))
         assertTrue(receiverKt.contains("ReadAloud.nextChapter(context)"))
@@ -43,11 +43,4 @@ class ReadAloudFollowPositionRegressionTest {
         assertTrue(readAloudKt.contains("intent.action = IntentAction.next"))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(
-            File(pathInApp),
-            File("app/$pathInApp")
-        )
-        return candidates.first { it.isFile }.readText()
-    }
 }

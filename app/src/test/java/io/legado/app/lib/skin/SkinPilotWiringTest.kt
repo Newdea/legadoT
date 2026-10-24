@@ -1,9 +1,9 @@
 package io.legado.app.lib.skin
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * R2a 试点接线锚点:引擎安装点、弹窗通路、试点布局的角色声明、手动施色已让位。
@@ -12,7 +12,7 @@ class SkinPilotWiringTest {
 
     @Test
     fun `theme installer installs before super onCreate in BaseActivity`() {
-        val src = readProjectFile("src/main/java/io/legado/app/base/BaseActivity.kt")
+        val src = ProjectSources.app("src/main/java/io/legado/app/base/BaseActivity.kt")
         val install = src.indexOf("AppThemeInstaller.install(this)")
         val superCreate = src.indexOf("super.onCreate(savedInstanceState)")
         assertTrue("BaseActivity 未安装统一主题入口", install > 0)
@@ -21,7 +21,7 @@ class SkinPilotWiringTest {
 
     @Test
     fun `dialog inflater route installs factory as fallback`() {
-        val src = readProjectFile("src/main/java/io/legado/app/base/BaseDialogFragment.kt")
+        val src = ProjectSources.app("src/main/java/io/legado/app/base/BaseDialogFragment.kt")
         assertTrue(src.contains("onGetLayoutInflater"))
         assertTrue(src.contains("SkinInflaterFactory.installOn"))
     }
@@ -36,7 +36,7 @@ class SkinPilotWiringTest {
         ).forEach { layout ->
             assertTrue(
                 "$layout 缺 skin_background 角色声明",
-                readProjectFile(layout).contains("""app:skin_background="surfaceContainerLow"""")
+                ProjectSources.app(layout).contains("""app:skin_background="surfaceContainerLow"""")
             )
         }
         listOf(
@@ -52,7 +52,7 @@ class SkinPilotWiringTest {
         ).forEach { adapter ->
             assertFalse(
                 "$adapter 仍有手动卡底施色(引擎已接管,双写会掩盖引擎故障)",
-                readProjectFile(adapter).contains("setCardBackgroundColor(AppColorScheme")
+                ProjectSources.app(adapter).contains("setCardBackgroundColor(AppColorScheme")
             )
         }
     }
@@ -64,17 +64,16 @@ class SkinPilotWiringTest {
         listOf("ThemeSeekBar", "ThemeProgressBar").forEach { name ->
             assertFalse(
                 "$name 应已删除",
-                File("src/main/java/io/legado/app/lib/theme/view/$name.kt").isFile ||
-                    File("app/src/main/java/io/legado/app/lib/theme/view/$name.kt").isFile
+                ProjectSources.existsApp("src/main/java/io/legado/app/lib/theme/view/$name.kt")
             )
         }
         // 行为壳:无任何施色代码
         listOf("ThemeCheckBox", "ThemeSwitch", "ThemeRadioButton", "ThemeEditText").forEach { name ->
-            val src = readProjectFile("src/main/java/io/legado/app/lib/theme/view/$name.kt")
+            val src = ProjectSources.app("src/main/java/io/legado/app/lib/theme/view/$name.kt")
             assertFalse("$name 应无施色残留", src.contains("TintList") || src.contains("applyTint"))
         }
         // 引擎接管:四个行为壳进精确匹配与反射兜底名单
-        val factory = readProjectFile("src/main/java/io/legado/app/lib/skin/SkinInflaterFactory.kt")
+        val factory = ProjectSources.app("src/main/java/io/legado/app/lib/skin/SkinInflaterFactory.kt")
         listOf("ThemeCheckBox", "ThemeSwitch", "ThemeRadioButton", "ThemeEditText").forEach { name ->
             assertTrue("引擎缺 $name 精确匹配", factory.contains("$name::class.java"))
             assertTrue(
@@ -90,12 +89,11 @@ class SkinPilotWiringTest {
         listOf("dialog_recycler_view", "dialog_book_change_source", "dialog_text_view").forEach {
             assertTrue(
                 "$it 的 tool_bar 缺 themePrimary 声明",
-                readProjectFile("src/main/res/layout/$it.xml")
+                ProjectSources.app("src/main/res/layout/$it.xml")
                     .contains("""app:skin_background="themePrimary"""")
             )
         }
-        val uiRoot = listOf(File("src/main/java/io/legado/app/ui"), File("app/src/main/java/io/legado/app/ui"))
-            .first { it.isDirectory }
+        val uiRoot = ProjectSources.appFile("src/main/java/io/legado/app/ui")
         val offenders = uiRoot.walkTopDown().filter { it.extension == "kt" }
             .filter { it.readText().contains("toolBar.setBackgroundColor(primaryColor)") }
             .map { it.name }.toList()
@@ -115,11 +113,11 @@ class SkinPilotWiringTest {
         ).forEach { (layout, decl) ->
             assertTrue(
                 "$layout 缺 $decl 声明",
-                readProjectFile("src/main/res/layout/$layout.xml").contains(decl)
+                ProjectSources.app("src/main/res/layout/$layout.xml").contains(decl)
             )
         }
         // 仿真翻页 Switch 已换 MaterialSwitch(引擎规则 A 接管)
-        val sim = readProjectFile("src/main/res/layout/dialog_simulated_reading.xml")
+        val sim = ProjectSources.app("src/main/res/layout/dialog_simulated_reading.xml")
         assertTrue(sim.contains("com.google.android.material.materialswitch.MaterialSwitch"))
         assertFalse(sim.contains("androidx.appcompat.widget.SwitchCompat"))
         // 分组/服务器行底色手动施色让位(双写会掩盖引擎故障)
@@ -131,17 +129,17 @@ class SkinPilotWiringTest {
         ).forEach { file ->
             assertFalse(
                 "$file 仍有行底色手动施色",
-                readProjectFile(file).contains("setBackgroundColor(context.backgroundColor)")
+                ProjectSources.app(file).contains("setBackgroundColor(context.backgroundColor)")
             )
         }
         // 阅读器画布不进引擎:view_book_page 保持无 skin_* 声明
         assertFalse(
             "view_book_page 不应有 skin 声明(阅读器自绘)",
-            readProjectFile("src/main/res/layout/view_book_page.xml").contains("app:skin_")
+            ProjectSources.app("src/main/res/layout/view_book_page.xml").contains("app:skin_")
         )
         assertFalse(
             "主界面底栏背景由 ThemeBottomNavigationVIew 按沉浸式设置管理",
-            readProjectFile("src/main/res/layout/activity_main.xml")
+            ProjectSources.app("src/main/res/layout/activity_main.xml")
                 .contains("app:skin_background")
         )
     }
@@ -157,15 +155,15 @@ class SkinPilotWiringTest {
         ).forEach { (layout, decl) ->
             assertTrue(
                 "$layout 缺 $decl 声明",
-                readProjectFile("src/main/res/layout/$layout.xml").contains(decl)
+                ProjectSources.app("src/main/res/layout/$layout.xml").contains(decl)
             )
         }
         // 平涂同值代码已让位
-        val bookInfo = readProjectFile("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt")
+        val bookInfo = ProjectSources.app("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt")
         assertFalse(bookInfo.contains("flAction.setBackgroundColor"))
         assertFalse(bookInfo.contains("llInfo.setBackgroundColor"))
         assertFalse(
-            readProjectFile("src/main/java/io/legado/app/ui/book/read/BaseReadBookActivity.kt")
+            ProjectSources.app("src/main/java/io/legado/app/ui/book/read/BaseReadBookActivity.kt")
                 .contains("navigationBar.setBackgroundColor")
         )
         // 读书菜单族背景=代码自管理域(豁免模板/FAB ColorStateList/亮暗联动),bg 通道不声明角色
@@ -173,21 +171,21 @@ class SkinPilotWiringTest {
         listOf("view_search_menu", "view_manga_menu", "dialog_auto_read", "dialog_read_aloud").forEach {
             assertFalse(
                 "$it 属读书菜单族,背景不应声明 skin_background",
-                readProjectFile("src/main/res/layout/$it.xml").contains("app:skin_background")
+                ProjectSources.app("src/main/res/layout/$it.xml").contains("app:skin_background")
             )
         }
         // 沉浸式条件卡(cardBackgroundColor 行为取色)背景保持代码域
         listOf("item_bookshelf_grid", "item_explore_cover").forEach {
             assertFalse(
                 "$it 的封面卡由 cardBackgroundColor 条件染色,不应声明 skin_background",
-                readProjectFile("src/main/res/layout/$it.xml").contains("app:skin_background")
+                ProjectSources.app("src/main/res/layout/$it.xml").contains("app:skin_background")
             )
         }
         // 沉浸式条件条:源编辑 tab 栏/调试帮助面板背景由代码按沉浸式设置染色
         listOf("activity_book_source_edit", "activity_rss_source_edit", "activity_source_debug").forEach {
             assertFalse(
                 "$it 的背景条由代码按沉浸式设置染色,不应声明 skin_background=\"background\"",
-                readProjectFile("src/main/res/layout/$it.xml")
+                ProjectSources.app("src/main/res/layout/$it.xml")
                     .contains("app:skin_background=\"background\"")
             )
         }
@@ -199,18 +197,18 @@ class SkinPilotWiringTest {
         ).forEach {
             assertFalse(
                 "$it 的模板重涂区不应有 skin_background 哑弹声明",
-                readProjectFile("src/main/res/layout/$it.xml").contains("app:skin_background=\"background\"")
+                ProjectSources.app("src/main/res/layout/$it.xml").contains("app:skin_background=\"background\"")
             )
         }
         // 发现页容器卡定案为可见卡面(surfaceContainerLow 引擎接管),不再走沉浸式透明+代码施色
         assertTrue(
             "item_explore_container 缺 surfaceContainerLow 声明",
-            readProjectFile("src/main/res/layout/item_explore_container.xml")
+            ProjectSources.app("src/main/res/layout/item_explore_container.xml")
                 .contains("""app:skin_background="surfaceContainerLow"""")
         )
         assertFalse(
             "ExploreContainerAdapter 不应再手动施 rootCard 卡底色(引擎已接管)",
-            readProjectFile("src/main/java/io/legado/app/ui/main/explore/ExploreContainerAdapter.kt")
+            ProjectSources.app("src/main/java/io/legado/app/ui/main/explore/ExploreContainerAdapter.kt")
                 .contains("rootCard.setCardBackgroundColor")
         )
     }
@@ -224,52 +222,48 @@ class SkinPilotWiringTest {
             "src/main/java/io/legado/app/lib/theme/ViewUtils.kt",
             "src/main/java/io/legado/app/ui/widget/text/PrimaryTextView.kt",
         ).forEach { path ->
-            assertFalse("$path 应已删除", File(path).isFile || File("app/$path").isFile)
+            assertFalse("$path 应已删除", ProjectSources.existsApp(path))
         }
         // ThemeStore 只剩四色读写:从未写入的 ATH 键族(状态栏/导航栏/文字色/primaryColorDark)已退役,
         // 消费端改直读四色或现算 darken(BaseActivity/BaseReadBookActivity)
-        val store = readProjectFile("src/main/java/io/legado/app/lib/theme/ThemeStore.kt")
+        val store = ProjectSources.app("src/main/java/io/legado/app/lib/theme/ThemeStore.kt")
         listOf("statusBarColor", "navigationBarColor", "textColorPrimary", "primaryColorDark")
             .forEach { assertFalse("ThemeStore 不应再有 $it", store.contains(it)) }
         // prefs 波:引擎可达处声明化,手动同值双写删除(双写会掩盖引擎故障)
         assertFalse(
             "PreferenceCategory 标题重涂应已删(布局已声明 skin_textColor=primary)",
-            readProjectFile("src/main/java/io/legado/app/lib/prefs/PreferenceCategory.kt")
+            ProjectSources.app("src/main/java/io/legado/app/lib/prefs/PreferenceCategory.kt")
                 .contains("setTextColor")
         )
         assertFalse(
             "Preference 图标 tint 应由 skin_tint 声明接管",
-            readProjectFile("src/main/java/io/legado/app/lib/prefs/Preference.kt")
+            ProjectSources.app("src/main/java/io/legado/app/lib/prefs/Preference.kt")
                 .contains("setColorFilter")
         )
         assertTrue(
             "view_preference 图标缺 skin_tint=primary 声明",
-            readProjectFile("src/main/res/layout/view_preference.xml")
+            ProjectSources.app("src/main/res/layout/view_preference.xml")
                 .contains("""app:skin_tint="primary"""")
         )
         assertFalse(
             "SwitchPreference 开关施色应由引擎规则 A 接管(MaterialSwitch 同值)",
-            readProjectFile("src/main/java/io/legado/app/lib/prefs/SwitchPreference.kt")
+            ProjectSources.app("src/main/java/io/legado/app/lib/prefs/SwitchPreference.kt")
                 .contains("trackTintList")
         )
         assertFalse(
             "EditTextPreference 输入框施色应由引擎规则 A 接管(AppCompatEditText 同值)",
-            readProjectFile("src/main/java/io/legado/app/lib/prefs/EditTextPreference.kt")
+            ProjectSources.app("src/main/java/io/legado/app/lib/prefs/EditTextPreference.kt")
                 .contains("applyTint")
         )
         assertFalse(
             "IconListPreference toolbar 施色应由 dialog_recycler_view 的 themePrimary 声明接管",
-            readProjectFile("src/main/java/io/legado/app/lib/prefs/IconListPreference.kt")
+            ProjectSources.app("src/main/java/io/legado/app/lib/prefs/IconListPreference.kt")
                 .contains("toolBar.setBackgroundColor")
         )
         // 死色清除后不回流(抽查代表:ATH 遗留/零引用长尾)
-        val colors = readProjectFile("src/main/res/values/colors.xml")
+        val colors = ProjectSources.app("src/main/res/values/colors.xml")
         listOf("<color name=\"primary\">", "ate_icon_light", "background_prefs", "btn_write")
             .forEach { assertFalse("colors.xml 死色 $it 不应回流", colors.contains(it)) }
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(File(pathInApp), File("app/$pathInApp"))
-        return candidates.first { it.isFile }.readText()
-    }
 }

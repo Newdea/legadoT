@@ -1,8 +1,8 @@
 package io.legado.app.model.jsSource
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * 哨兵:目录解析成功后的 book 字段回写(totalChapterNum/latestChapterTitle/durChapterTitle/
@@ -14,9 +14,9 @@ import java.io.File
 class JsSourceTocWriteBackSentinelTest {
 
     private val jsSourceBook =
-        File("src/main/java/io/legado/app/model/jsSource/JsSourceBook.kt").readText()
+        ProjectSources.app("src/main/java/io/legado/app/model/jsSource/JsSourceBook.kt")
     private val bookChapterList =
-        File("../shared/src/commonMain/kotlin/io/legado/app/model/webBook/BookChapterList.kt").readText()
+        ProjectSources.repo("shared/src/commonMain/kotlin/io/legado/app/model/webBook/BookChapterList.kt")
 
     @Test
     fun jsTocPathSharesDeclarativeWriteBack() {

@@ -1,8 +1,8 @@
 package io.legado.app.model.jsSource
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * 哨兵:WebBook 五入口必须在声明式骨架之前分派 JS 源(spec §5)。
@@ -11,7 +11,7 @@ import java.io.File
 class JsSourceDispatchSentinelTest {
 
     private val webBook =
-        File("../shared/src/commonMain/kotlin/io/legado/app/model/webBook/WebBook.kt").readText()
+        ProjectSources.repo("shared/src/commonMain/kotlin/io/legado/app/model/webBook/WebBook.kt")
 
     @Test
     fun fourAwaitEntriesDispatchToJsSourceBook() {

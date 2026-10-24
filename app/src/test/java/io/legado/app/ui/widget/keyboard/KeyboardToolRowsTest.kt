@@ -1,16 +1,16 @@
 package io.legado.app.ui.widget.keyboard
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class KeyboardToolRowsTest {
 
     @Test
     fun `pref key and config property exist`() {
-        val preferKey = readProjectFile("src/main/java/io/legado/app/constant/PreferKey.kt")
-        val appConfig = readProjectFile("src/main/java/io/legado/app/help/config/AppConfig.kt")
+        val preferKey = ProjectSources.app("src/main/java/io/legado/app/constant/PreferKey.kt")
+        val appConfig = ProjectSources.app("src/main/java/io/legado/app/help/config/AppConfig.kt")
 
         assertContains(preferKey, "const val keyboardToolRows = \"keyboardToolRows\"")
         assertContains(appConfig, "var keyboardToolRows: Int")
@@ -33,14 +33,14 @@ class KeyboardToolRowsTest {
 
     @Test
     fun `config getter clamps instead of throwing`() {
-        val appConfig = readProjectFile("src/main/java/io/legado/app/help/config/AppConfig.kt")
+        val appConfig = ProjectSources.app("src/main/java/io/legado/app/help/config/AppConfig.kt")
 
         assertContains(appConfig, "in KEYBOARD_TOOL_MIN_ROWS..KEYBOARD_TOOL_MAX_ROWS")
     }
 
     @Test
     fun `layout delegates layout manager to runtime`() {
-        val layout = readProjectFile("src/main/res/layout/popup_keyboard_tool.xml")
+        val layout = ProjectSources.app("src/main/res/layout/popup_keyboard_tool.xml")
 
         // 行数在运行时才知道,XML 不能写死 layoutManager
         assertTrue(
@@ -52,7 +52,7 @@ class KeyboardToolRowsTest {
 
     @Test
     fun `single row keeps horizontal linear layout and wrap content`() {
-        val pop = readProjectFile("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
+        val pop = ProjectSources.app("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
 
         assertContains(pop, "fun upRowCount(")
         assertContains(pop, "LinearLayoutManager(context, RecyclerView.HORIZONTAL, false)")
@@ -62,7 +62,7 @@ class KeyboardToolRowsTest {
 
     @Test
     fun `row count change remeasures content view for host padding`() {
-        val pop = readProjectFile("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
+        val pop = ProjectSources.app("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
 
         // measuredHeight 参与宿主编辑区 bottom padding 计算,行数变化后必须重测
         assertContains(pop, "measureContentView()")
@@ -73,7 +73,7 @@ class KeyboardToolRowsTest {
 
     @Test
     fun `row count changes are deferred while recycler view is computing layout`() {
-        val pop = readProjectFile("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
+        val pop = ProjectSources.app("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
 
         assertContains(pop, "binding.recyclerView.isComputingLayout")
         assertContains(pop, "binding.recyclerView.post")
@@ -81,7 +81,7 @@ class KeyboardToolRowsTest {
 
     @Test
     fun `keyboard adapter is attached only after header and layout manager setup`() {
-        val pop = readProjectFile("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
+        val pop = ProjectSources.app("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
 
         assertContains(pop, "adapter.addHeaderView")
         assertContains(pop, "binding.recyclerView.adapter = null")
@@ -90,10 +90,8 @@ class KeyboardToolRowsTest {
 
     @Test
     fun `config dialog exposes row count entry`() {
-        val menu = readProjectFile("src/main/res/menu/keyboard_assists_config.xml")
-        val config = readProjectFile(
-            "src/main/java/io/legado/app/ui/widget/keyboard/KeyboardAssistsConfig.kt"
-        )
+        val menu = ProjectSources.app("src/main/res/menu/keyboard_assists_config.xml")
+        val config = ProjectSources.app("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardAssistsConfig.kt")
 
         assertContains(menu, "android:id=\"@+id/menu_row_count\"")
         assertContains(config, "R.id.menu_row_count")
@@ -105,10 +103,8 @@ class KeyboardToolRowsTest {
 
     @Test
     fun `row count change reaches the popup through event bus`() {
-        val config = readProjectFile(
-            "src/main/java/io/legado/app/ui/widget/keyboard/KeyboardAssistsConfig.kt"
-        )
-        val pop = readProjectFile("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
+        val config = ProjectSources.app("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardAssistsConfig.kt")
+        val pop = ProjectSources.app("src/main/java/io/legado/app/ui/widget/keyboard/KeyboardToolPop.kt")
 
         // 行数存 pref 无 Room flow 可依,配置页与浮窗无引用关系,靠事件贯通
         assertContains(config, "postEvent(PreferKey.keyboardToolRows,")
@@ -125,8 +121,4 @@ class KeyboardToolRowsTest {
         assertTrue("Expected to contain $expected", text.contains(expected))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(File(pathInApp), File("app/$pathInApp"))
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

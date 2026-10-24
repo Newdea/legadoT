@@ -1,8 +1,8 @@
 package io.legado.app.ui.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 /**
  * Task 12 收敛哨兵：BookSourceEditActivity / AutoTaskEditActivity 的手搭字段导航条
@@ -16,12 +16,12 @@ class FieldNavMigrationTest {
             "src/main/java/io/legado/app/ui/book/source/edit/BookSourceEditActivity.kt",
             "src/main/java/io/legado/app/ui/autoTask/AutoTaskEditActivity.kt",
         ).forEach { p ->
-            val src = File(p).readText()
+            val src = ProjectSources.app(p)
             assertTrue("$p 仍有手搭导航条", !src.contains("highlightNavItem"))
             assertTrue(src.contains("FieldNavBar") || src.contains("fieldNav"))
         }
-        assertTrue(!File("src/main/res/drawable/bg_field_nav_item.xml").exists())
-        val rss = File("src/main/res/layout/activity_rss_source_edit.xml").readText()
+        assertTrue(!ProjectSources.existsApp("src/main/res/drawable/bg_field_nav_item.xml"))
+        val rss = ProjectSources.app("src/main/res/layout/activity_rss_source_edit.xml")
         assertTrue("RSS 编辑应获得导航条", rss.contains("FieldNavBar"))
     }
 }

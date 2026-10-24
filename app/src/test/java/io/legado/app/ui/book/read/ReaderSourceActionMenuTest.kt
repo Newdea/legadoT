@@ -1,9 +1,9 @@
 package io.legado.app.ui.book.read
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class ReaderSourceActionMenuTest {
 
@@ -16,7 +16,7 @@ class ReaderSourceActionMenuTest {
             "view_manga_menu.xml" to "app:radius=\"16dp\"",
         )
         radiusAssertion.forEach { (layoutName, radiusExpectation) ->
-            val xml = readProjectFile("src/main/res/layout/$layoutName")
+            val xml = ProjectSources.app("src/main/res/layout/$layoutName")
             assertContains(layoutName, xml, "android:id=\"@+id/tv_source_action\"")
             assertContains(layoutName, xml, "android:minHeight=\"32dp\"")
             assertContains(layoutName, xml, "android:paddingStart=\"@dimen/space_m\"")
@@ -30,7 +30,7 @@ class ReaderSourceActionMenuTest {
 
     @Test
     fun `reader source action menu uses custom popup instead of system popup menu`() {
-        val readMenuKt = readProjectFile("src/main/java/io/legado/app/ui/book/read/ReadMenu.kt")
+        val readMenuKt = ProjectSources.app("src/main/java/io/legado/app/ui/book/read/ReadMenu.kt")
 
         assertFalse(readMenuKt.contains("PopupMenu(context, binding.tvSourceAction)"))
         assertContains("ReadMenu.kt", readMenuKt, "private val sourceActionMenu by lazy")
@@ -42,7 +42,7 @@ class ReaderSourceActionMenuTest {
 
     @Test
     fun `popup action supports vertical source menus and danger items`() {
-        val popupActionKt = readProjectFile("src/main/java/io/legado/app/ui/widget/PopupAction.kt")
+        val popupActionKt = ProjectSources.app("src/main/java/io/legado/app/ui/widget/PopupAction.kt")
 
         assertContains("PopupAction.kt", popupActionKt, "fun setVertical(vertical: Boolean)")
         assertContains("PopupAction.kt", popupActionKt, "fun setDangerValues(values: Set<String>)")
@@ -55,11 +55,4 @@ class ReaderSourceActionMenuTest {
         assertTrue("$name should contain $expected", text.contains(expected))
     }
 
-    private fun readProjectFile(pathInApp: String): String {
-        val candidates = listOf(
-            File(pathInApp),
-            File("app/$pathInApp")
-        )
-        return candidates.firstOrNull { it.isFile }?.readText().orEmpty()
-    }
 }

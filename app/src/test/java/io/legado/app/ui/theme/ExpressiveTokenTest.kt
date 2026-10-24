@@ -1,14 +1,14 @@
 package io.legado.app.ui.theme
 
+import io.legado.app.ProjectSources
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.io.File
 
 class ExpressiveTokenTest {
 
     @Test
     fun `radius scale is expressive recalibrated - containers grow small stays`() {
-        val dimens = readProjectFile("src/main/res/values/dimens.xml")
+        val dimens = ProjectSources.app("src/main/res/values/dimens.xml")
         assertContains(dimens, "<dimen name=\"radius_xs\">4dp</dimen>")
         assertContains(dimens, "<dimen name=\"radius_s\">8dp</dimen>")
         assertContains(dimens, "<dimen name=\"radius_m\">12dp</dimen>")
@@ -19,7 +19,7 @@ class ExpressiveTokenTest {
 
     @Test
     fun `display tier and gap tokens exist`() {
-        val dimens = readProjectFile("src/main/res/values/dimens.xml")
+        val dimens = ProjectSources.app("src/main/res/values/dimens.xml")
         assertContains(dimens, "<dimen name=\"text_display\">32sp</dimen>")
         assertContains(dimens, "<dimen name=\"text_caption_l\">13sp</dimen>")
         assertContains(dimens, "<dimen name=\"text_body_l\">15sp</dimen>")
@@ -28,7 +28,7 @@ class ExpressiveTokenTest {
 
     @Test
     fun `headline is emphasized and display style hooked`() {
-        val styles = readProjectFile("src/main/res/values/styles.xml")
+        val styles = ProjectSources.app("src/main/res/values/styles.xml")
         assertContains(styles, "name=\"TextAppearance.App.Display\"")
         assertContains(styles, "<item name=\"textAppearanceDisplaySmall\">@style/TextAppearance.App.Display</item>")
         val headlineStart = styles.indexOf("name=\"TextAppearance.App.Headline\"")
@@ -42,13 +42,11 @@ class ExpressiveTokenTest {
 
     @Test
     fun `textInputStyle is hooked and source edit chips use app token`() {
-        val styles = readProjectFile("src/main/res/values/styles.xml")
+        val styles = ProjectSources.app("src/main/res/values/styles.xml")
         assertContains(styles, "<item name=\"textInputStyle\">@style/Widget.App.TextInputLayout</item>")
-        val layout = readProjectFile("src/main/res/layout/activity_book_source_edit.xml")
+        val layout = ProjectSources.app("src/main/res/layout/activity_book_source_edit.xml")
         assertTrue("chips should use Widget.App.Chip", !layout.contains("Widget.Material3.Chip.Filter"))
     }
-
-    private fun readProjectFile(path: String): String = File(path).readText()
 
     private fun assertContains(haystack: String, needle: String) {
         assertTrue("missing: $needle", haystack.contains(needle))
