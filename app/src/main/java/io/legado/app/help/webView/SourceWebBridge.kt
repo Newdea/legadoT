@@ -26,6 +26,7 @@ import io.legado.app.ui.book.explore.ExploreShowActivity
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.rss.article.RssSortActivity
+import io.legado.app.ui.rss.article.rssSortUrl
 import io.legado.app.ui.rss.read.ReadRssActivity
 import io.legado.app.ui.widget.dialog.PhotoDialog
 import io.legado.app.utils.GSON
@@ -570,7 +571,7 @@ private class JavaBridge(
                     val target = origin?.let { appDb.rssSourceDao.getByKey(it) }
                         ?: source as? RssSource ?: return@launch
                     withContext(Dispatchers.Main) {
-                        activity.startActivity<RssSortActivity> { putExtra("url", target.sourceUrl) }
+                        RssSortActivity.start(activity, rssSortUrl(url, title), target.sourceUrl)
                     }
                 }
                 "rss" -> {

@@ -11,6 +11,7 @@ import io.legado.app.ui.book.explore.ExploreShowActivity
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.login.SourceLoginActivity
 import io.legado.app.ui.rss.article.RssSortActivity
+import io.legado.app.ui.rss.article.rssSortUrl
 import io.legado.app.utils.openUrl
 import io.legado.app.utils.showDialogFragment
 import io.legado.app.utils.startActivity
@@ -38,8 +39,8 @@ class RssJsExtensions(private val activity: ReadRssActivity) : JsExtensionsAndro
     /**
      * 页面跳转调度
      * @param name login=源登录页 rss=订阅阅读页 sort=订阅分类列表 search=书籍搜索 explore=发现结果页
-     * @param url rss=文章链接(空则开列表/单页源) explore=发现地址
-     * @param title 页面标题; search 时为搜索词
+     * @param url rss=文章链接(空则开列表/单页源) sort=分类链接(空则开完整分类列表) explore=发现地址
+     * @param title 页面标题; search 时为搜索词; sort 时为分类标签名
      * @param origin 指定目标源(书源url/订阅源url), 缺省当前源
      */
     @JvmOverloads
@@ -50,9 +51,7 @@ class RssJsExtensions(private val activity: ReadRssActivity) : JsExtensionsAndro
                 "sort" -> {
                     val toSource = resolveRssSource(origin) ?: return@launch
                     withContext(Main) {
-                        activity.startActivity<RssSortActivity> {
-                            putExtra("url", toSource.sourceUrl)
-                        }
+                        RssSortActivity.start(activity, rssSortUrl(url, title), toSource.sourceUrl)
                     }
                 }
 
@@ -113,9 +112,7 @@ class RssJsExtensions(private val activity: ReadRssActivity) : JsExtensionsAndro
         if (url.isNullOrBlank()) {
             when {
                 !toSource.singleUrl -> withContext(Main) {
-                    activity.startActivity<RssSortActivity> {
-                        putExtra("url", toSource.sourceUrl)
-                    }
+                    RssSortActivity.start(activity, null, toSource.sourceUrl)
                 }
 
                 toSource.sourceUrl.startsWith("http", true) -> withContext(Main) {

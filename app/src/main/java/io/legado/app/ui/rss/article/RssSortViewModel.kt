@@ -13,6 +13,9 @@ import io.legado.app.help.source.removeSortCache
 
 class RssSortViewModel(application: Application) : BaseViewModel(application) {
     var url: String? = null
+
+    /** 深链指定的分类, 为空时展示订阅源的完整分类列表 */
+    var sortUrl: String? = null
     var rssSource: RssSource? = null
     val titleLiveData = MutableLiveData<String>()
     var order = System.currentTimeMillis()
@@ -29,10 +32,17 @@ class RssSortViewModel(application: Application) : BaseViewModel(application) {
                     rssSource = RssSource(sourceUrl = url)
                 }
             }
+            sortUrl = intent.getStringExtra("sortUrl")?.takeIf { it.isNotBlank() }
+            // 单个分类时 tab 栏会隐藏, 用分类名作标题
+            sortTabs()?.takeIf { it.size == 1 && it.first().first.isNotEmpty() }
+                ?.let { titleLiveData.postValue(it.first().first) }
         }.onFinally {
             finally()
         }
     }
+
+    /** sortUrl 解析出的分类; 未指定深链时返回 null, 由调用方回退到 source.sortUrls() */
+    fun sortTabs(): List<Pair<String, String>>? = parseSortTabs(sortUrl)
 
     fun switchLayout() {
         rssSource?.let {

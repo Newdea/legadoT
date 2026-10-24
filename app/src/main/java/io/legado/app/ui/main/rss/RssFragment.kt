@@ -190,9 +190,7 @@ class RssFragment() : VMBaseFragment<RssViewModel>(R.layout.fragment_rss),
                 }
             }
         } else {
-            startActivity<RssSortActivity> {
-                putExtra("url", rssSource.sourceUrl)
-            }
+            RssSortActivity.start(requireActivity(), null, rssSource.sourceUrl)
         }
     }
 

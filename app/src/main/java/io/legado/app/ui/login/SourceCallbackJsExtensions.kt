@@ -14,6 +14,7 @@ import io.legado.app.ui.association.AddToBookshelfDialog
 import io.legado.app.ui.book.explore.ExploreShowActivity
 import io.legado.app.ui.book.search.SearchActivity
 import io.legado.app.ui.rss.article.RssSortActivity
+import io.legado.app.ui.rss.article.rssSortUrl
 import io.legado.app.ui.rss.read.ReadRssActivity
 import io.legado.app.utils.openUrl
 import io.legado.app.utils.showDialogFragment
@@ -113,10 +114,12 @@ class SourceCallbackJsExtensions(
 
     /**
      * 页面跳转调度
-     * @param name login=源登录页 rss=订阅阅读页 search=书籍搜索 explore=发现结果页
-     * @param url rss=文章链接(空则开列表/单页源) explore=发现地址
-     * @param title 页面标题; search 时为搜索词
+     * @param name login=源登录页 rss=订阅阅读页 sort=订阅分类页 search=书籍搜索 explore=发现结果页
+     * @param url rss=文章链接(空则开列表/单页源) sort=分类链接(空则开完整分类列表) explore=发现地址
+     * @param title 页面标题; search 时为搜索词; sort 时为分类标签名
      * @param origin 指定目标源(书源url/订阅源url), 缺省当前源
+     *
+     * 传入不支持的 name 时会提示并写入日志, 不会静默忽略。
      */
     @JvmOverloads
     fun open(name: String, url: String? = null, title: String? = null, origin: String? = null) {
@@ -125,6 +128,7 @@ class SourceCallbackJsExtensions(
                 when (name) {
                     "login" -> openLogin(activity, origin)
                     "rss" -> openRss(activity, url, title, origin)
+                    "sort" -> openSort(activity, url, title, origin)
                     "search" -> title?.let { SearchActivity.start(activity, it) }
                     "explore" -> {
                         if (url.isNullOrBlank()) return@launch
@@ -141,6 +145,15 @@ class SourceCallbackJsExtensions(
                             putExtra("exploreName", title)
                             putExtra("sourceUrl", toSource.bookSourceUrl)
                             putExtra("exploreUrl", url)
+                        }
+                    }
+
+                    else -> {
+                        // 拼错或不支持的 name 不能静默丢弃, 否则规则作者无从排查。
+                        val message = "不支持的页面类型: $name"
+                        AppLog.put(message, tag = source?.getKey())
+                        if (activity.canUseUi()) {
+                            activity.toastOnUi(message)
                         }
                     }
                 }
@@ -168,11 +181,31 @@ class SourceCallbackJsExtensions(
                 // origin 使阅读页重载目标订阅源，沿用其 headers/Cookie/正文规则，而非当前书源。
                 target.articleExtras().forEach { (key, value) -> putExtra(key, value) }
             }
-            SourceCallbackRssPage.SORT -> activity.startActivity<RssSortActivity> {
-                putExtra("url", target.origin)
-            }
+            SourceCallbackRssPage.SORT -> RssSortActivity.start(activity, null, target.origin)
             SourceCallbackRssPage.EXTERNAL -> activity.openUrl(target.origin)
         }
+    }
+
+    /**
+     * 打开订阅源分类页。url 为分类链接(空则展示完整分类列表), title 为分类标签名;
+     * origin 必须是已导入订阅源的 sourceUrl, 不能是显示名称。
+     */
+    private suspend fun openSort(
+        activity: AppCompatActivity,
+        url: String?,
+        title: String?,
+        origin: String?
+    ) {
+        val toSource = withContext(IO) {
+            if (origin.isNullOrBlank()) {
+                source as? RssSource
+            } else {
+                appDb.rssSourceDao.getByKey(origin)
+            }
+        } ?: return
+        // 数据库读取期间原页面可能已退出、停止或保存了 Fragment 状态。
+        if (!activity.canUseUi()) return
+        RssSortActivity.start(activity, rssSortUrl(url, title), toSource.sourceUrl)
     }
 
     /** 在 Main 执行导航，只有查找目标源离开主线程。 */

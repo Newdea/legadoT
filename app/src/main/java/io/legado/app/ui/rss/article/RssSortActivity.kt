@@ -1,5 +1,6 @@
 package io.legado.app.ui.rss.article
 
+import android.content.Context
 import android.os.Bundle
 import android.view.Menu
 import android.view.MenuItem
@@ -24,6 +25,28 @@ import io.legado.app.utils.viewbindingdelegate.viewBinding
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
+
+/**
+ * 把 `java.open("sort", url, title, origin)` 的 url/title 组合成 RssSortActivity 的 sortUrl:
+ * url 本身是 JSON 对象时原样使用(可同时打开多个分类), 否则用 title 包成 {"标题":"链接"}。
+ */
+internal fun rssSortUrl(url: String?, title: String?): String? = when {
+    url.isJsonObject() -> url
+    // 无链接时展示完整分类列表; 无标题时单分类标题留空
+    url.isNullOrBlank() -> null
+    title.isNullOrBlank() -> url
+    else -> JSONObject().put(title, url).toString()
+}
+
+/** sortUrl 解析出的分类; 未指定时返回 null, 由调用方回退到 source.sortUrls()。非法 JSON 按普通链接处理。 */
+internal fun parseSortTabs(sortUrl: String?): List<Pair<String, String>>? {
+    val url = sortUrl?.takeIf { it.isNotBlank() } ?: return null
+    if (!url.isJsonObject()) return listOf(Pair("", url))
+    return GSONStrict.fromJsonObject<Map<String, String>>(url).getOrNull()
+        ?.map { Pair(it.key, it.value) }
+        ?: listOf(Pair("", url))
+}
 
 class RssSortActivity : VMBaseActivity<ActivityRssArtivlesBinding, RssSortViewModel>(),
     VariableDialog.Callback {
@@ -106,7 +129,9 @@ class RssSortActivity : VMBaseActivity<ActivityRssArtivlesBinding, RssSortViewMo
 
     private fun upFragments() {
         lifecycleScope.launch {
-            viewModel.rssSource?.sortUrls()?.let {
+            // 深链指定的分类优先, 未指定时才展示订阅源的完整分类列表
+            val tabs = viewModel.sortTabs() ?: viewModel.rssSource?.sortUrls()
+            tabs?.let {
                 sortList.clear()
                 sortList.addAll(it)
             }
@@ -166,6 +191,20 @@ class RssSortActivity : VMBaseActivity<ActivityRssArtivlesBinding, RssSortViewMo
         override fun createFragment(position: Int): Fragment {
             val sort = sortList[position]
             return RssArticlesFragment(sort.first, sort.second)
+        }
+    }
+
+    companion object {
+        /**
+         * @param sortUrl 指定分类链接, 为空则展示订阅源的完整分类列表;
+         *                可传 {"标题":"链接"} 形式的 JSON 同时打开多个分类
+         * @param sourceUrl 目标订阅源 sourceUrl, 用于复用其请求头/Cookie 与解析规则
+         */
+        fun start(context: Context, sortUrl: String?, sourceUrl: String) {
+            context.startActivity<RssSortActivity> {
+                putExtra("sortUrl", sortUrl)
+                putExtra("url", sourceUrl)
+            }
         }
     }
 

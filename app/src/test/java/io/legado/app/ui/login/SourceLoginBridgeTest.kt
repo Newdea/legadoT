@@ -105,6 +105,9 @@ class SourceLoginBridgeTest {
         java.open("login")
         java.open("search", title = "book")
         java.open("explore", "https://explore.test")
+        // 支持的 sort 与不支持的 name 在无原页面时都必须直接忽略, 不能触达 Android Main dispatcher/其他 Activity。
+        java.open("sort")
+        java.open("unknownPage")
     }
 
     @Test

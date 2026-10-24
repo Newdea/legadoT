@@ -54,19 +54,22 @@ java.addBook(bookUrl: String)
 
 - 订阅阅读页中的跳转调度
 
-以下方法绑定于订阅阅读页的 `shouldOverrideUrlLoading` 规则。书源交互回调和登录 UI 使用的同名方法见下一节，支持的 `name` 不完全相同。
+以下方法绑定于订阅阅读页的 `shouldOverrideUrlLoading` 规则。书源交互回调和登录 UI 使用同名方法，`name` 与参数含义一致，见下一节。
 
 ```js
 java.open(name: String, url?: String, title?: String, origin?: String)
-// name: login=源登录页 rss=订阅阅读页 sort=订阅分类列表 search=书籍搜索 explore=发现结果页
-// url: rss=文章链接(空则开列表/单页源) explore=发现地址
-// title: 页面标题; search 时为搜索词
+// name: login=源登录页 rss=订阅阅读页 sort=订阅分类页 search=书籍搜索 explore=发现结果页
+// url: rss=文章链接(空则开列表/单页源) sort=分类链接(空则开完整分类列表) explore=发现地址
+// title: 页面标题; search 时为搜索词; sort 时为分类标签名
 // origin: 指定目标源(书源url/订阅源url), 缺省当前源
 java.open("login")                                  // 当前源登录页
 java.open("rss", "https://example.com/a/1", "文章") // 打开文章
+java.open("sort", "https://example.com/list/1", "书单") // 打开指定分类
 java.open("search", null, "关键词")                 // 按关键词搜书
 java.open("explore", exploreUrl, "分类名", source.getKey()) // 打开发现结果页, 指定书源url
 ```
+
+- `sort` 的 `url` 可传 `{"标题":"链接"}` 形式的 JSON 同时打开多个分类；`url` 为空则展示该订阅源的完整分类列表。两种情况下都会沿用目标订阅源的请求头、Cookie 与解析规则。
 
 ### 交互回调与登录 UI 的页面跳转
 
@@ -80,9 +83,15 @@ java.open("explore", "https://book.example/hot", "热门", "https://book.example
 java.open("rss", "https://news.example/article/1", "文章标题", "https://rss.example/source");
 // url 为空：普通订阅源打开分类列表；单页源按其配置打开内容/外部地址
 java.open("rss", null, null, "https://rss.example/source");
+// 打开指定分类, 分类名作为标签/标题
+java.open("sort", "https://news.example/list/1", "书单", "https://rss.example/source");
+// sort 的 url 也可传 {"标题":"链接"} 形式的 JSON 同时打开多个分类
+java.open("sort", '{"书单":"https://news.example/list/1"}', null, "https://rss.example/source");
+// sort 的 url 为空时展示完整分类列表
+java.open("sort", null, null, "https://rss.example/source");
 ```
 
-- 此上下文支持 `login` / `rss` / `search` / `explore`；不支持订阅阅读页专用的 `sort`，打开订阅分类列表请使用 `rss` 加空链接。
+- 此上下文支持 `login` / `rss` / `sort` / `search` / `explore`。`sort` 打开订阅源分类页：`url` 为分类链接（空则展示完整分类列表），`title` 为分类标签名，也可用 `{"标题":"链接"}` 形式的 JSON 一次打开多个分类。传入其它 `name` 时会提示「不支持的页面类型」并写入日志，不再静默忽略。
 - 从书源跳到订阅源时必须传第四参；只有当前源本来就是订阅源时，RSS 的目标源才可省略。源必须已导入，方法不会自动下载或创建订阅源。
 - RSS 阅读沿用目标订阅源的请求头、Cookie 配置及正文规则。显式文章链接可进入未缓存文章的加载链路，已有文章不会被空记录覆盖；网站能否登录和解析正文仍取决于源规则。
 - 导航是异步操作，只在发起调用的原页面仍可交互时执行；原页面已退出、停止或保存状态时可能不跳转，不会借用其它前台页面。
