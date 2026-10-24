@@ -45,21 +45,25 @@ class MotionLayerTest {
     }
 
     @Test
-    fun `container transform wired from shelves and search to book info`() {
+    fun `detail enter transition is window level fade through`() {
         val info = File("src/main/java/io/legado/app/ui/book/info/BookInfoActivity.kt").readText()
-        assertTrue(info.contains("MaterialContainerTransform"))
-        assertTrue(info.contains("book_cover_"))
-        // N5-C3: 三站发射块收敛为 utils/ActivityExtensions.startBookInfoTransition 共享扩展,
-        // makeSceneTransitionAnimation 单份落在扩展内,三站改调该扩展。
+        // e7348a607: 详情页转场由共享元素容器变换改为整窗 fade-through, 与共享元素彻底解耦,
+        // 对所有进入路径(书架/搜索/裸跳转)统一生效, 与 ReadBookActivity 的 fade 同语系。
+        assertTrue("详情页应挂窗口级 fade-through", info.contains("MaterialFadeThrough"))
+        assertTrue("应配进入转场", info.contains("enterTransition"))
+        assertTrue("应配返回转场", info.contains("returnTransition"))
+        // 去重靠"移除"达成: 三个发射点不再各自构造转场, 共享发射扩展也随之删除。
         listOf(
             "src/main/java/io/legado/app/ui/main/bookshelf/style1/books/BooksFragment.kt",
             "src/main/java/io/legado/app/ui/main/bookshelf/style2/BookshelfFragment2.kt",
             "src/main/java/io/legado/app/ui/book/search/SearchActivity.kt",
         ).forEach { p ->
-            assertTrue("$p 应调共享容器变换发射扩展", File(p).readText().contains("startBookInfoTransition"))
+            val src = File(p).readText()
+            assertTrue("$p 不应再各自做场景变换发射", !src.contains("makeSceneTransitionAnimation"))
+            assertTrue("$p 不应再各自构造容器变换", !src.contains("MaterialContainerTransform"))
         }
         val ext = File("src/main/java/io/legado/app/utils/ActivityExtensions.kt").readText()
-        assertTrue("共享扩展承载场景变换发射", ext.contains("makeSceneTransitionAnimation"))
+        assertTrue("共享发射扩展已随解耦移除", !ext.contains("fun Activity.startBookInfoTransition"))
     }
 
     @Test

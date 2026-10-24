@@ -29,21 +29,9 @@ class N5RefactorTest {
         }
     }
 
-    @Test
-    fun `cover transition launch is shared`() {
-        val ext = File("src/main/java/io/legado/app/utils/ActivityExtensions.kt").readText()
-        assertTrue("应有共享发射扩展", ext.contains("fun Activity.startBookInfoTransition"))
-        listOf(
-            "ui/main/bookshelf/style1/books/BooksFragment",
-            "ui/main/bookshelf/style2/BookshelfFragment2",
-            "ui/book/search/SearchActivity",
-        ).forEach {
-            val src = File("src/main/java/io/legado/app/$it.kt").readText()
-            assertTrue("$it 应调共享扩展", src.contains("startBookInfoTransition"))
-            assertTrue("$it 不应再内联 makeSceneTransitionAnimation",
-                !src.contains("makeSceneTransitionAnimation"))
-        }
-    }
+    // 封面转场发射的去重哨兵已移至 MotionLayerTest: e7348a607 把详情页转场改成窗口级
+    // fade-through 后, 去重靠"移除各发射点代码"达成, 原"共享发射扩展"断言失去对象,
+    // 由 MotionLayerTest 的 fade-through 守卫接管, 不在此重复断言同一处源码。
 
     @Test
     fun `ambient background returns cancellable job`() {

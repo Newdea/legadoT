@@ -10,7 +10,9 @@ class TextSelectMenuConfigTest {
     fun defaultHasExpectedPartition() {
         val c = TextSelectMenuConfig.default()
         assertEquals(listOf("replace", "copy", "bookmark", "highlight", "aloud"), c.bar)
-        assertEquals(listOf("dict", "search", "browser", "share"), c.more)
+        assertEquals(listOf("dict", "search", "browser", "share", "review"), c.more)
+        // 新增键必须同时进 ALL_KEYS 与默认分区, 漏一处老用户升级后就看不到新入口
+        assertEquals(TextSelectMenuConfig.ALL_KEYS.toSet(), (c.bar + c.more).toSet())
     }
 
     @Test
@@ -56,10 +58,14 @@ class TextSelectMenuConfigTest {
         val c = TextSelectMenuConfig(listOf("copy"), listOf("share")).normalized()
         val all = c.bar + c.more
         assertEquals(TextSelectMenuConfig.ALL_KEYS.toSet(), all.toSet())
-        assertEquals(9, all.size)
+        // 用常量推导而非硬编码数字, 以后加键不用再改这里
+        assertEquals(TextSelectMenuConfig.ALL_KEYS.size, all.size)
         assertTrue(
             c.more.containsAll(
-                listOf("replace", "bookmark", "highlight", "aloud", "dict", "search", "browser")
+                listOf(
+                    "replace", "bookmark", "highlight", "aloud",
+                    "dict", "search", "browser", "review"
+                )
             )
         )
     }

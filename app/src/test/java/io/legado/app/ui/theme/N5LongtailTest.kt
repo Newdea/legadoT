@@ -41,8 +41,13 @@ class N5LongtailTest {
         val openUrl = File("src/main/res/layout/dialog_open_url_confirm.xml").readText()
         assertFalse("open_url_confirm 根节点僵尸 shape_card_view 应删(模板重涂)",
             openUrl.contains("@drawable/shape_card_view"))
-        val about = File("src/main/res/layout/activity_about.xml").readText()
-        org.junit.Assert.assertTrue("activity_about 的 shape_card_view 保留(非弹窗)",
-            about.contains("@drawable/shape_card_view"))
+        // 474cf69a6: 关于页已试点迁 Compose, XML 只剩 TitleBar + ComposeView 外壳,
+        // 卡片视觉改由 AboutScreen 的 Surface 承载, 断言目标随之迁移。
+        val aboutXml = File("src/main/res/layout/activity_about.xml").readText()
+        org.junit.Assert.assertTrue("关于页应挂 ComposeView", aboutXml.contains("ComposeView"))
+        val aboutCompose = File("../shared/src/commonMain/kotlin/io/legado/app/shared/about/AboutScreen.kt")
+            .readText()
+        org.junit.Assert.assertTrue("关于页 Compose 应保留圆角卡片视觉",
+            aboutCompose.contains("Surface") && aboutCompose.contains("RoundedCornerShape"))
     }
 }
