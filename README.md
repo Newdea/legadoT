@@ -17,7 +17,7 @@ Legado is a free and open source novel reader for Android.
 
 > 本仓库为 **阅读T**（Legado 增强分支）：在 Legado 基础上扩展定时任务、JS 书源、内置 MCP 服务等能力，详见下方 [阅读T增强特性](#阅读t增强特性)。
 >
-> [测试版下载](https://github.com/skybbk1001/legadoT/releases/tag/beta) · [本版更新说明](<CHANGELOG.md>) · [完整更新历史](<app/src/main/assets/updateLog.md>) · [API / MCP 使用说明](<api.md>)
+> [测试版下载](https://github.com/skybbk1001/legadoT/releases/tag/beta) · [本版更新说明](<CHANGELOG.md>) · [完整更新历史](<app/src/main/assets/updateLog.md>) · [API / MCP 使用说明](<api.md>) · [完整帮助文档](<app/src/main/assets/web/help/md/appHelp.md>)
 >
 > **升级前请先备份。** 本轮测试版数据库由 93 升级到 94，首次启动自动迁移；迁移后的应用数据不支持直接交给旧版读取，如需回退，请使用升级前备份。
 
@@ -82,7 +82,7 @@ Legado is a free and open source novel reader for Android.
 - 原生段评支持，支持自定义段评图标
 - 选择文本菜单支持自定义展示
 - 阅读记录显示作者与封面快照，按书籍 URL 区分同名书；兼容旧记录迁移与备份幂等合并
-- Nostr 段评：支持 NIP-46 远程 / NIP-55 本机签名器、点赞与嵌套回复、最热/最新排序，以及发送进度、草稿保存与重发
+- Nostr 段评：支持 NIP-46 远程 / NIP-55 本机签名器、头像昵称、点赞与五级嵌套回复、最热/最新排序，以及中继配置与自动发现、发送进度、草稿保存与重发（[快速上手](#nostr-段评快速上手)）
 
 听书增强
 
@@ -160,9 +160,16 @@ https://gedoor.github.io/Disclaimer
 - [web端书架](https://github.com/gedoor/legado_web_bookshelf)
 - [web端源编辑](https://github.com/gedoor/legado_web_source_editor)
 
-##### Nostr 段评与中继
+##### Nostr 段评快速上手
 
-App 出厂不预置任何 Nostr 中继，需在「**我的** → **其它设置** → **Nostr** → **Nostr 中继**」中每行填写一个 `wss://` 地址。远程签名器（`bunker://` / `nostrconnect://`）自带中继时优先使用签名器的；生成配对二维码、读取公开段评和发布才用到这里填写的中继，本机签名器（NIP-55）不经过中继。填好后可点「自动发现可用中继」，它对已填地址逐个做 NIP-11 元数据探测与 WebSocket 健康检查，过滤掉要求鉴权、付费、禁止写入或连不上的中继。可填入的示例地址、生效范围与常见问题见 [帮助文档](app/src/main/assets/web/help/md/appHelp.md) 的「Nostr 段评与中继」章节。
+App 出厂不预置任何 Nostr 中继，首次使用按下面四步完成：
+
+1. **打开开关**：「**我的**」→「**其它设置**」→「**Nostr 段评**」，打开「Nostr 段评」。
+2. **填中继**：同一页进入「Nostr 中继」，每行填一个 `wss://` 地址，例如 `wss://relay.nostrzh.org`、`wss://relay.ditto.pub`、`wss://relay.gulugulu.moe`；保存后点「自动发现可用中继」，它会逐个做 NIP-11 元数据探测与 WebSocket 健康检查，过滤掉要求鉴权、付费、禁止写入或连不上的中继。
+3. **连签名器**（只看不写可跳过）：点「签名器」，扫码或粘贴 `bunker://` 连接远程签名器（NIP-46），也可以直接连接手机上的签名器 App（NIP-55，如 Amber）。两个账号可同时保留，随时点选切换。
+4. **看和写**：段末气泡上的数字就是该段评论数，点开阅读；弹窗右上角的铅笔用于发表评论，每条评论下可「回复」（最多 5 级）和「点赞」；选中正文文字后出现的临时气泡可以直接给这一段写第一条评论。
+
+发表、回复、点赞都需要签名器；只读别人的段评不需要登录。中继生效范围、段评图标自定义、草稿与重发、隐私与备份说明，以及「看不到段评 / 发不出去 / 点赞失败 / 计数延迟」等常见问题，见帮助文档的 [Nostr 段评与中继](app/src/main/assets/web/help/md/appHelp.md#nostr-段评与中继) 章节（App 内也可从「**我的**」右上角帮助按钮打开并搜索「Nostr」）。
 
 <a href="#readme">
     <img src="https://img.shields.io/badge/-返回顶部-orange.svg" alt="#" align="right">

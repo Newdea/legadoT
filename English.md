@@ -16,7 +16,7 @@ Legado is a free and open source novel reader for Android.
 
 > This repository is **LegadoT**, an enhanced Legado fork with JS sources, scheduled tasks and a built-in MCP service.
 >
-> [Beta downloads](https://github.com/skybbk1001/legadoT/releases/tag/beta) · [Release notes (Chinese)](<CHANGELOG.md>) · [API / MCP guide (Chinese)](<api.md>)
+> [Beta downloads](https://github.com/skybbk1001/legadoT/releases/tag/beta) · [Release notes (Chinese)](<CHANGELOG.md>) · [API / MCP guide (Chinese)](<api.md>) · [Help documentation (Chinese)](<app/src/main/assets/web/help/md/appHelp.md>)
 >
 > **Back up before upgrading.** This beta migrates database version 93 to 94 on first launch. Older app versions cannot directly read the migrated database; keep a pre-upgrade backup if you need to roll back.
 
@@ -120,6 +120,17 @@ https://www.yuque.com/legado/wiki/community
 ##### Disclaimers
 
 https://gedoor.github.io/Disclaimer
+
+##### Nostr paragraph comments quick start
+
+The app ships with no Nostr relays. First-time setup takes four steps:
+
+1. **Enable it**: Me → Other settings → Nostr paragraph comments, turn on “Nostr paragraph comments”.
+2. **Add relays**: open “Nostr relays” on the same page and enter one `wss://` address per line, then run “Discover usable relays” to filter out relays that require auth, charge fees, reject writes, or are unreachable.
+3. **Connect a signer** (optional if you only read): open “Nostr signer” and scan the QR code or paste a `bunker://` address for a remote signer (NIP-46), or connect a local NIP-55 signer app such as Amber. Both accounts can coexist and can be switched at any time.
+4. **Read and write**: the numbered bubble at the end of a paragraph is its comment count; tap it to read. The pencil at the top right posts a comment, and each comment can be replied to (up to 5 levels) or liked. A temporary bubble appears after selecting text so you can post the first comment on that paragraph.
+
+Publishing, replying and liking require a connected signer; reading public comments does not. Relay scope, custom review icons, drafts and retry, privacy and backup notes, plus troubleshooting (no comments, publish failures, like rollback, delayed counts) are covered in the [Nostr paragraph comments section](app/src/main/assets/web/help/md/appHelp.md#nostr-段评与中继) of the in-app help (Chinese).
 
 ##### Legado 3.0
 
