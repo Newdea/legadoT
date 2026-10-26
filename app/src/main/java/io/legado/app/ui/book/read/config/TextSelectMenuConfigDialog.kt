@@ -18,6 +18,7 @@ import io.legado.app.base.adapter.RecyclerAdapter
 import io.legado.app.databinding.DialogRecyclerViewBinding
 import io.legado.app.databinding.ItemTextSelectMenuConfigBinding
 import io.legado.app.help.TextSelectMenuConfig
+import io.legado.app.help.config.AppConfig
 import io.legado.app.ui.book.read.TextSelectMenuItem
 import io.legado.app.ui.book.read.loadTextSelectMenuConfig
 import io.legado.app.ui.book.read.saveTextSelectMenuConfig
@@ -45,6 +46,10 @@ class TextSelectMenuConfigDialog : BaseDialogFragment(R.layout.dialog_recycler_v
     private val binding by viewBinding(DialogRecyclerViewBinding::bind)
     private val adapter by lazy { MenuAdapter(requireContext()) }
     private lateinit var itemTouchHelper: ItemTouchHelper
+
+    /** 关闭段评时「段评」项不展示；记录它在配置里的分组与位置，保存时按原样放回。 */
+    private var hiddenReviewZone: Int? = null
+    private var hiddenReviewIndex: Int = 0
 
     override fun onStart() {
         super.onStart()
@@ -77,7 +82,25 @@ class TextSelectMenuConfigDialog : BaseDialogFragment(R.layout.dialog_recycler_v
 
     private fun initData() {
         val config = loadTextSelectMenuConfig(requireContext()).normalized()
+        captureHiddenReviewEntry(config)
         adapter.setItems(rowsOf(toEntries(config.bar), toEntries(config.more)))
+    }
+
+    private fun captureHiddenReviewEntry(config: TextSelectMenuConfig) {
+        if (AppConfig.nostrReviewEnabled) return
+        val barIndex = config.bar.indexOf(TextSelectMenuConfig.KEY_REVIEW)
+        val moreIndex = config.more.indexOf(TextSelectMenuConfig.KEY_REVIEW)
+        when {
+            barIndex >= 0 -> {
+                hiddenReviewZone = ZONE_BAR
+                hiddenReviewIndex = barIndex
+            }
+
+            moreIndex >= 0 -> {
+                hiddenReviewZone = ZONE_MORE
+                hiddenReviewIndex = moreIndex
+            }
+        }
     }
 
     override fun onMenuItemClick(item: MenuItem?): Boolean {
@@ -93,6 +116,9 @@ class TextSelectMenuConfigDialog : BaseDialogFragment(R.layout.dialog_recycler_v
     /** 把内置项 key 列表转成条目行(丢弃未知 key) */
     private fun toEntries(keys: List<String>): MutableList<Row.Entry> =
         keys.mapNotNull { key ->
+            if (key == TextSelectMenuConfig.KEY_REVIEW && hiddenReviewZone != null) {
+                return@mapNotNull null
+            }
             TextSelectMenuItem.byKey[key]?.let { Row.Entry(it.key, it.titleRes) }
         }.toMutableList()
 
@@ -121,11 +147,27 @@ class TextSelectMenuConfigDialog : BaseDialogFragment(R.layout.dialog_recycler_v
 
     /** 用规范顺序重建列表并落盘 */
     private fun commitRows(bar: List<Row.Entry>, more: List<Row.Entry>) {
+        val (finalBar, finalMore) = restoreHiddenReviewEntry(bar, more)
         adapter.setItems(rowsOf(bar, more))
         saveTextSelectMenuConfig(
             requireContext(),
-            TextSelectMenuConfig(bar.map { it.key }, more.map { it.key })
+            TextSelectMenuConfig(finalBar.map { it.key }, finalMore.map { it.key })
         )
+    }
+
+    /** 把隐藏期间未参与排序的「段评」项按原分组与位置放回，避免保存时把它从配置里删掉。 */
+    private fun restoreHiddenReviewEntry(
+        bar: List<Row.Entry>,
+        more: List<Row.Entry>
+    ): Pair<MutableList<Row.Entry>, MutableList<Row.Entry>> {
+        val newBar = bar.toMutableList()
+        val newMore = more.toMutableList()
+        val zone = hiddenReviewZone ?: return newBar to newMore
+        val entry = TextSelectMenuItem.byKey[TextSelectMenuConfig.KEY_REVIEW]
+            ?.let { Row.Entry(it.key, it.titleRes) } ?: return newBar to newMore
+        val target = if (zone == ZONE_BAR) newBar else newMore
+        target.add(hiddenReviewIndex.coerceIn(0, target.size), entry)
+        return newBar to newMore
     }
 
     /** 拖动结束:按当前位置规范化(分隔行归位)并落盘 */

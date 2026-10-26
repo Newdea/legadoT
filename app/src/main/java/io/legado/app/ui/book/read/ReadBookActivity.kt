@@ -366,10 +366,6 @@ class ReadBookActivity : BaseReadBookActivity(),
     private val reviewSummaryDiskCache by lazy { ACache.get("review_summary") }
     private val nostrReviewPreferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == PreferKey.nostrReview) {
-            if (!AppConfig.nostrReviewEnabled) {
-                reviewSummaryAppliedKey = null
-                ChapterProvider.clearReviewProviders()
-            }
             loadReviewSummaryIfNeeded()
         }
     }
@@ -985,6 +981,10 @@ class ReadBookActivity : BaseReadBookActivity(),
     /** 选中「无段评」的段落时临时给出评论气泡；取消选择后延后清除，留出点击时间。 */
     private fun syncTransientReviewBubble() {
         handler.removeCallbacks(clearTransientReviewRunnable)
+        if (!AppConfig.nostrReviewEnabled) {
+            ChapterProvider.clearTransientReviewColumn()
+            return
+        }
         val target = binding.readView.curPage.selectedReviewTarget()
         if (target == null || target.count > 0) {
             ChapterProvider.clearTransientReviewColumn()
@@ -1963,6 +1963,12 @@ class ReadBookActivity : BaseReadBookActivity(),
     }
 
     private fun loadReviewSummaryIfNeeded() {
+        if (!AppConfig.nostrReviewEnabled) {
+            // 段评开关关闭：书源与 Nostr 段评都不再上屏，同时在途统计响应作废
+            invalidateReviewSummary()
+            ChapterProvider.clearTransientReviewColumn()
+            return
+        }
         loadNostrReviewSummaryIfNeeded()
         ReadBook.book?.let { prefetchNextNostrReviewSummary(it) }
         val source = ReadBook.bookSource ?: run {
@@ -2172,7 +2178,6 @@ class ReadBookActivity : BaseReadBookActivity(),
      * 预取下一章的 Nostr 段评统计并落盘：翻到下一章时可直接命中缓存，不再等网络。
      */
     private fun prefetchNextNostrReviewSummary(book: Book) {
-        if (!AppConfig.nostrReviewEnabled) return
         val maxIndex = if (ReadBook.simulatedChapterSize > 0) {
             ReadBook.simulatedChapterSize
         } else {
@@ -2245,7 +2250,6 @@ class ReadBookActivity : BaseReadBookActivity(),
         textChapter: TextChapter,
         counts: Map<Int, Int>
     ) {
-        if (!AppConfig.nostrReviewEnabled) return
         val paragraphs = textChapter.paragraphTexts
         if (paragraphs.isEmpty()) return
         val currentParagraphNum = currentReviewParagraphNum(chapterIndex) ?: 0

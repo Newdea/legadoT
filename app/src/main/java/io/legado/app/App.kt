@@ -157,10 +157,10 @@ class App : Application() {
         defaultSharedPreferences.registerOnSharedPreferenceChangeListener(AppConfig)
         initRhino()
         //已登录 Nostr：启动后独立协程同步本账号资料（头像/昵称），不受下面启动流程是否出错影响
+        //段评关闭时不从中继拉取任何资料
         Coroutine.async {
-            NostrSigners.currentPubkey()?.let { pubkey ->
-                NostrProfileStore.sync(listOf(pubkey))
-            }
+            val pubkey = if (AppConfig.nostrReviewEnabled) NostrSigners.currentPubkey() else null
+            pubkey?.let { NostrProfileStore.sync(listOf(it)) }
         }.onError {
             AppLog.put("同步 Nostr 账号资料失败\n${it.localizedMessage}", it)
         }

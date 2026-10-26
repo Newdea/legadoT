@@ -104,9 +104,12 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
 
     private fun buildPartition() {
         val config = loadTextSelectMenuConfig(context).normalized()
+        // 段评开关关闭时「段评」项不进浮动条也不进更多
+        val hideReview = !AppConfig.nostrReviewEnabled
         // 内置项有唯一 id;动态 PROCESS_TEXT 项 id 为 0,在此跳过(后面统一补到"更多")
         val byId = HashMap<Int, MenuItemImpl>()
         for (item in menuItems) {
+            if (hideReview && item.itemId == R.id.menu_review) continue
             if (item.itemId != 0 && !byId.containsKey(item.itemId)) {
                 byId[item.itemId] = item
             }
@@ -124,6 +127,7 @@ class TextActionMenu(private val context: Context, private val callBack: CallBac
         }
         // 剩余项(动态 PROCESS_TEXT 项 + 配置未覆盖的内置项)统一补到"更多"末尾
         for (item in menuItems) {
+            if (hideReview && item.itemId == R.id.menu_review) continue
             if (placed.add(item)) moreMenuItems.add(item)
         }
     }

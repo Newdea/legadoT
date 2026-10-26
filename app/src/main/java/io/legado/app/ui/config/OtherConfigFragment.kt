@@ -116,6 +116,7 @@ class OtherConfigFragment : PreferenceFragment(),
         }
         updateNostrSignerSummary()
         updateNostrRelaysSummary()
+        updateNostrPreferencesVisibility()
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -277,6 +278,8 @@ class OtherConfigFragment : PreferenceFragment(),
                 setProcessTextEnable(it.getBoolean(key, true))
             }
 
+            PreferKey.nostrReview -> updateNostrPreferencesVisibility()
+
             PreferKey.showDiscovery, PreferKey.showRss -> postEvent(EventBus.NOTIFY_MAIN, true)
             PreferKey.legacyExplore -> postEvent(PreferKey.legacyExplore, true)
             PreferKey.language -> listView.postDelayed(1000) {
@@ -376,6 +379,14 @@ class OtherConfigFragment : PreferenceFragment(),
 
     private fun updateNostrSignerSummary() {
         findPreference<Preference>("nostrSigner")?.let { (it as? NostrSignerPreference)?.refresh() }
+    }
+
+    /** 段评关闭时隐藏签名器与中继等不再相关的设置项。 */
+    private fun updateNostrPreferencesVisibility() {
+        val visible = AppConfig.nostrReviewEnabled
+        findPreference<Preference>("nostrSigner")?.isVisible = visible
+        findPreference<Preference>(PreferKey.nostrRelays)?.isVisible = visible
+        findPreference<Preference>("nostrRelayDiscover")?.isVisible = visible
     }
 
     private fun updateNostrRelaysSummary() {
