@@ -23,6 +23,7 @@ import io.legado.app.constant.PreferKey
 import io.legado.app.databinding.DialogEditTextBinding
 import io.legado.app.help.AppFreezeMonitor
 import io.legado.app.help.DispatchersMonitor
+import io.legado.app.help.HelpSections
 import io.legado.app.help.config.AppConfig
 import io.legado.app.help.config.LocalConfig
 import io.legado.app.help.nostr.NostrRelays
@@ -38,6 +39,7 @@ import io.legado.app.service.WebService
 import io.legado.app.service.McpService
 import io.legado.app.ui.file.HandleFileContract
 import io.legado.app.ui.nostr.NostrSignerDialogController
+import io.legado.app.ui.widget.dialog.TextDialog
 import io.legado.app.ui.widget.number.NumberPickerDialog
 import io.legado.app.utils.LogUtils
 import io.legado.app.utils.getPrefBoolean
@@ -59,6 +61,9 @@ import splitties.init.appCtx
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+/** 必须与 appHelp.md 的 H2 标题一致；对不上时帮助弹窗退回全文。 */
+private const val NOSTR_REVIEW_HELP_SECTION = "Nostr 段评与中继"
 
 /**
  * 其它设置
@@ -112,6 +117,7 @@ class OtherConfigFragment : PreferenceFragment(),
             (preference as? NostrSignerPreference)?.apply {
                 onConnectClick = { nostrSignerDialog.show { updateNostrSignerSummary() } }
                 onLogoutClick = { logoutNostrSigner() }
+                onHelpClick = { showNostrReviewHelp() }
             }
         }
         updateNostrSignerSummary()
@@ -379,6 +385,23 @@ class OtherConfigFragment : PreferenceFragment(),
 
     private fun updateNostrSignerSummary() {
         findPreference<Preference>("nostrSigner")?.let { (it as? NostrSignerPreference)?.refresh() }
+    }
+
+    /** 只显示帮助文档里的段评章节；章节找不到时退回全文。 */
+    private fun showNostrReviewHelp() {
+        val md = String(
+            requireContext().assets.open("web/help/md/appHelp.md").readBytes()
+        )
+        val section = HelpSections.parse(md)
+            .firstOrNull { it.title == NOSTR_REVIEW_HELP_SECTION }
+        showDialogFragment(
+            TextDialog(
+                getString(R.string.help),
+                section?.text ?: md,
+                TextDialog.Mode.MD,
+                showToc = section == null
+            )
+        )
     }
 
     /** 段评关闭时隐藏签名器与中继等不再相关的设置项。 */

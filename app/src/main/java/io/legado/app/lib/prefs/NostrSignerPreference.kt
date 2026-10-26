@@ -1,6 +1,7 @@
 package io.legado.app.lib.prefs
 
 import android.content.Context
+import android.content.res.ColorStateList
 import android.util.AttributeSet
 import android.view.View
 import android.widget.ImageView
@@ -10,6 +11,7 @@ import io.legado.app.R
 import io.legado.app.help.glide.ImageLoader
 import io.legado.app.help.nostr.NostrProfileStore
 import io.legado.app.help.nostr.NostrSigners
+import io.legado.app.lib.theme.AppColorScheme
 import io.legado.app.utils.sendToClip
 import io.legado.app.utils.toastOnUi
 
@@ -32,6 +34,9 @@ class NostrSignerPreference @JvmOverloads constructor(
     /** 退出当前使用的签名器。 */
     var onLogoutClick: (() -> Unit)? = null
 
+    /** 未登录时点头像上的问号打开帮助。 */
+    var onHelpClick: (() -> Unit)? = null
+
     init {
         layoutResource = R.layout.view_nostr_signer_preference
         // 行内自己处理点击（含右侧动作），不走框架的 Preference 点击分发。
@@ -50,13 +55,25 @@ class NostrSignerPreference @JvmOverloads constructor(
         val pubkey = NostrSigners.currentPubkey()?.takeIf { it.isNotBlank() }
         val profile = pubkey?.let { NostrProfileStore.get(it) }
         val picture = profile?.picture?.takeIf { it.isNotBlank() }
-        if (picture == null) {
-            // 无资料时留空占位（而非 GONE），保持行高与未登录态一致。
-            avatar.setImageDrawable(null)
-            avatar.visibility = View.INVISIBLE
-        } else {
+        if (pubkey == null) {
             avatar.visibility = View.VISIBLE
-            ImageLoader.load(context, picture).circleCrop().into(avatar)
+            avatar.setImageResource(R.drawable.ic_help)
+            avatar.imageTintList = ColorStateList.valueOf(AppColorScheme.current.primary)
+            avatar.contentDescription = context.getString(R.string.help)
+            avatar.setOnClickListener { onHelpClick?.invoke() }
+        } else {
+            avatar.imageTintList = null
+            avatar.contentDescription = context.getString(R.string.nostr_signer)
+            avatar.setOnClickListener(null)
+            if (picture == null) {
+                // 无资料时留空占位（而非 GONE），保持行高与未登录态一致。
+                avatar.setImageDrawable(null)
+                avatar.visibility = View.INVISIBLE
+            } else {
+                avatar.setImageDrawable(null)
+                avatar.visibility = View.VISIBLE
+                ImageLoader.load(context, picture).circleCrop().into(avatar)
+            }
         }
 
         if (pubkey == null) {
