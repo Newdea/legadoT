@@ -366,6 +366,8 @@ class ReadBookActivity : BaseReadBookActivity(),
     private val reviewSummaryDiskCache by lazy { ACache.get("review_summary") }
     private val nostrReviewPreferenceListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == PreferKey.nostrReview) {
+            // 监听回调顺序不保证 AppConfig 已刷新，先按存储值同步开关状态
+            AppConfig.nostrReviewEnabled = getPrefBoolean(PreferKey.nostrReview, false)
             loadReviewSummaryIfNeeded()
         }
     }

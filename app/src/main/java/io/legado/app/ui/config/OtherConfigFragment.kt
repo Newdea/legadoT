@@ -383,7 +383,8 @@ class OtherConfigFragment : PreferenceFragment(),
 
     /** 段评关闭时隐藏签名器与中继等不再相关的设置项。 */
     private fun updateNostrPreferencesVisibility() {
-        val visible = AppConfig.nostrReviewEnabled
+        // 监听回调顺序不保证 AppConfig 已刷新，直接读存储值
+        val visible = appCtx.getPrefBoolean(PreferKey.nostrReview, false)
         findPreference<Preference>("nostrSigner")?.isVisible = visible
         findPreference<Preference>(PreferKey.nostrRelays)?.isVisible = visible
         findPreference<Preference>("nostrRelayDiscover")?.isVisible = visible
