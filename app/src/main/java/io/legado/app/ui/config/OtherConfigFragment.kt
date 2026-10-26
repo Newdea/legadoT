@@ -419,10 +419,14 @@ class OtherConfigFragment : PreferenceFragment(),
     }
 
     /**
-     * 对「用户配置 + 内置种子」的中继逐个做 NIP-11 + WebSocket 健康检查，
+     * 对用户填写的中继逐个做 NIP-11 + WebSocket 健康检查，
      * 过滤掉要求鉴权/付费/禁止写入或连不上的中继，把可用结果写回设置与缓存。
      */
     private fun discoverNostrRelays() {
+        if (NostrRelays.effective().isEmpty()) {
+            toastOnUi(getString(R.string.nostr_relays_missing))
+            return
+        }
         var job: Job? = null
         val dialog = alert(
             getString(R.string.nostr_relays_discover),

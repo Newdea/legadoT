@@ -49,7 +49,6 @@ object PreferKey {
     const val nostrRelays = "nostrRelays"
     const val nostrRelayCache = "nostrRelayCache"
     const val nostrRelayCacheTime = "nostrRelayCacheTime"
-    const val nostrRelaySeedVersion = "nostrRelaySeedVersion"
     const val nostrRestoredBunkerUri = "nostrRestoredBunkerUri"
     const val processText = "process_text"
     const val cleanCache = "cleanCache"

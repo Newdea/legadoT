@@ -296,9 +296,8 @@ object NostrReviewClient {
             .toList()
         if (authors.isEmpty()) return emptyList()
         val latest = HashMap<String, NostrEvent>()
-        // 资料（kind 0）不能只依赖「会话+已配置」中继：作者的资料可能只存在于其它公开中继，
-        // 这里额外带上内置种子中继；命中情况写日志便于排查。
-        val profileRelays = (relays() + NostrRelays.seeds()).distinct()
+        // 资料（kind 0）与段评共用中继：会话中继 + 用户配置的中继。
+        val profileRelays = relays()
         authors.chunked(50).forEach { batch ->
             val events = runCatching {
                 queryEvents(

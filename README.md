@@ -160,6 +160,10 @@ https://gedoor.github.io/Disclaimer
 - [web端书架](https://github.com/gedoor/legado_web_bookshelf)
 - [web端源编辑](https://github.com/gedoor/legado_web_source_editor)
 
+##### Nostr 段评与中继
+
+App 出厂不预置任何 Nostr 中继，需在「**我的** → **其它设置** → **Nostr** → **Nostr 中继**」中每行填写一个 `wss://` 地址。远程签名器（`bunker://` / `nostrconnect://`）自带中继时优先使用签名器的；生成配对二维码、读取公开段评和发布才用到这里填写的中继，本机签名器（NIP-55）不经过中继。填好后可点「自动发现可用中继」，它对已填地址逐个做 NIP-11 元数据探测与 WebSocket 健康检查，过滤掉要求鉴权、付费、禁止写入或连不上的中继。可填入的示例地址、生效范围与常见问题见 [帮助文档](app/src/main/assets/web/help/md/appHelp.md) 的「Nostr 段评与中继」章节。
+
 <a href="#readme">
     <img src="https://img.shields.io/badge/-返回顶部-orange.svg" alt="#" align="right">
 </a>

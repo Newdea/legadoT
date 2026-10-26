@@ -427,22 +427,13 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
 
     /**
      * 用户配置的 Nostr 中继（每行一个）。仅在 bunker:// 未自带中继的场景使用，
-     * 例如生成配对二维码、读取公开段评。
+     * 例如生成配对二维码、读取公开段评。出厂为空，由用户自行填写。
      */
     var nostrRelays: String
-        get() = appCtx.getPrefString(PreferKey.nostrRelays) ?: seedNostrRelays
+        get() = appCtx.getPrefString(PreferKey.nostrRelays).orEmpty()
         set(value) {
             appCtx.putPrefString(PreferKey.nostrRelays, value)
         }
-
-    /** 出厂种子中继，供自动发现使用。 */
-    val seedNostrRelays: String
-        get() = appCtx.resources.getStringArray(R.array.nostr_seed_relays)
-            .joinToString("\n")
-
-    /** 用户显式配置的中继，不做种子回退；为空表示还没配置过。 */
-    val nostrRelaysConfigured: String
-        get() = appCtx.getPrefString(PreferKey.nostrRelays).orEmpty()
 
     /** 健康检查通过的中继（每行一个）。 */
     var nostrRelayCache: String
@@ -456,13 +447,6 @@ object AppConfig : SharedPreferences.OnSharedPreferenceChangeListener {
         get() = appCtx.getPrefLong(PreferKey.nostrRelayCacheTime)
         set(value) {
             appCtx.putPrefLong(PreferKey.nostrRelayCacheTime, value)
-        }
-
-    /** 已应用到的出厂种子中继版本，用于把旧版本写入配置的失效默认中继替换掉。 */
-    var nostrRelaySeedVersion: Int
-        get() = appCtx.getPrefInt(PreferKey.nostrRelaySeedVersion)
-        set(value) {
-            appCtx.putPrefInt(PreferKey.nostrRelaySeedVersion, value)
         }
 
     /**
