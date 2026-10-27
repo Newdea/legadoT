@@ -597,4 +597,50 @@ class NostrReviewClientTest {
 
         assertEquals(setOf(5), matches.keys)
     }
+
+    @Test
+    fun paragraphMatchFallsBackToPunctuationInsensitiveMatch() {
+        // 同一段在不同书源里只差引号与句号：去空白口径整句失配，靠去标点口径命中。
+        val paragraphs = listOf(
+            "开头段落的内容足够长，用来占位。",
+            "他说：“我们明天再走吧。”",
+            "结尾段落的内容足够长，用来占位。"
+        )
+        val excerpt = NostrReviewClient.NostrEvent(
+            id = "event-id",
+            pubkey = "pubkey",
+            content = "他说:\"我们明天再走吧.\"",
+            createdAt = 1,
+            kind = 9802,
+            tags = emptyList()
+        )
+
+        val matches = NostrReviewClient.matchParagraphs(listOf(excerpt), paragraphs, chapterTitle = "")
+
+        assertEquals(setOf(2), matches.keys)
+    }
+
+    @Test
+    fun punctuationInsensitiveMatchRejectsAmbiguousShortExcerpt() {
+        // 去掉标点后「好」在章内出现两次且 context 分不开：仍然放弃，避免乱挂。
+        val paragraphs = listOf(
+            "先把话题拉开，免得短句无法定位。",
+            "好！",
+            "中间过渡一下，内容要够长才行。",
+            "好？",
+            "结尾段落内容足够长，可以结束了。"
+        )
+        val excerpt = NostrReviewClient.NostrEvent(
+            id = "event-id",
+            pubkey = "pubkey",
+            content = "好。",
+            createdAt = 1,
+            kind = 9802,
+            tags = emptyList()
+        )
+
+        val matches = NostrReviewClient.matchParagraphs(listOf(excerpt), paragraphs, chapterTitle = "")
+
+        assertTrue(matches.isEmpty())
+    }
 }

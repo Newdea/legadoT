@@ -403,6 +403,21 @@ object NostrReviewClient {
             compactOffset += text.length
         }
         val matches = mutableMapOf<Int, MutableList<NostrEvent>>()
+        // 去标点视图：同书不同源常只差引号/省略号/全半角符号。
+        // 惰性构建，只有出现「两档都失配」的摘录时才付这份成本。
+        var looseView: Triple<List<String>, IntArray, String>? = null
+        fun looseParagraphView(): Triple<List<String>, IntArray, String> {
+            looseView?.let { return it }
+            val looseParagraphs = paragraphs.map(::looseCompact)
+            val looseStarts = IntArray(looseParagraphs.size)
+            var offset = 0
+            looseParagraphs.forEachIndexed { index, text ->
+                looseStarts[index] = offset
+                offset += text.length
+            }
+            return Triple(looseParagraphs, looseStarts, looseParagraphs.joinToString(""))
+                .also { looseView = it }
+        }
         excerpts.forEach { event ->
             val content = normalizeContent(event.content)
             val candidateIndexes = linkedSetOf<Int>()
@@ -428,14 +443,30 @@ object NostrReviewClient {
                 score
             }
             val selected = when {
-                // 精确匹配无候选：正文可能被重新分段（合段/拆段），改用去空白的整章文本定位。
-                candidates.isEmpty() -> fuzzyParagraphIndex(
-                    content = event.content,
-                    compactParagraphs = compactParagraphs,
-                    compactStarts = compactStarts,
-                    compactFull = compactFull,
-                    contextScore = contextScore
-                )?.let { index -> listOf(index) }.orEmpty()
+                // 精确匹配无候选：正文可能被重新分段（合段/拆段），先用去空白的整章文本定位，
+                // 仍失配时再试去标点口径（同书不同源常只差引号/省略号/全半角符号）。
+                candidates.isEmpty() -> {
+                    val strict = fuzzyParagraphIndex(
+                        content = event.content,
+                        compactParagraphs = compactParagraphs,
+                        compactStarts = compactStarts,
+                        compactFull = compactFull,
+                        contextScore = contextScore
+                    )
+                    if (strict != null) {
+                        listOf(strict)
+                    } else {
+                        val (looseParagraphs, looseStarts, looseFull) = looseParagraphView()
+                        fuzzyParagraphIndex(
+                            content = event.content,
+                            compactParagraphs = looseParagraphs,
+                            compactStarts = looseStarts,
+                            compactFull = looseFull,
+                            contextScore = contextScore,
+                            normalize = { looseCompact(it) }
+                        )?.let { index -> listOf(index) }.orEmpty()
+                    }
+                }
 
                 candidates.size > 1 -> {
                     val scores = candidates.associateWith { index ->
@@ -459,6 +490,15 @@ object NostrReviewClient {
     }
 
     /**
+     * 匹配兜底口径：NFKC 后去掉全部空白与标点/符号。
+     * 同一段在不同书源里常只差引号、省略号或全半角符号，去空白口径会因此整句失配；
+     * 该口径只用于定位，不参与发布端的段落哈希（[paragraphTagValue]）。
+     */
+    private fun looseCompact(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
+        .replace(Regex("[\\s\\u3000]+"), "")
+        .replace(Regex("[\\p{P}\\p{S}\\p{Z}\\p{C}]"), "")
+
+    /**
      * 去空白后在整章文本里定位一段正文，返回与之重叠最大的段落下标。
      * 先找整段；整段找不到时退回中段定长窗口（长片段包含）。多处并列时 context 分高者优先，仍并列取靠前；
      * 重叠不足 [MIN_OVERLAP_LENGTH] 视为未命中。
@@ -467,15 +507,18 @@ object NostrReviewClient {
      * 摘录只是现段落的一部分（常见于「只取到段首一句」）。此时整句落入某段即算命中，
      * 重叠门槛降到摘录自身长度；同一句在章内多处出现时，只有 context 分唯一最高才接受，
      * 否则放弃（避免「嗯。」这类短句乱挂）。
+     *
+     * [normalize] 决定比较口径：默认去空白；传 [looseCompact] 时走去标点兜底（同书不同源只差符号时用）。
      */
     private fun fuzzyParagraphIndex(
         content: String,
         compactParagraphs: List<String>,
         compactStarts: IntArray,
         compactFull: String,
-        contextScore: (Int) -> Int
+        contextScore: (Int) -> Int,
+        normalize: (String) -> String = { compact(it) }
     ): Int? {
-        val condensed = compact(content)
+        val condensed = normalize(content)
         if (condensed.isEmpty()) return null
         val isShort = condensed.length < MIN_FUZZY_LENGTH
         val needle = if (isShort || compactFull.contains(condensed)) {
