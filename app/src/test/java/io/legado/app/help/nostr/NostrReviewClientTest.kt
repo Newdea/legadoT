@@ -524,4 +524,77 @@ class NostrReviewClientTest {
 
         assertTrue(matches.isEmpty())
     }
+
+    @Test
+    fun shortExcerptMatchesMergedParagraph() {
+        // 发布时是两段，当前书源合并成一段：摘录只有前一句且不足 16 字，也要靠整句子串定位。
+        val excerptText = "“这话可不好接！”"
+        val paragraphs = listOf(
+            "上一段的内容足够长，用来占位。",
+            excerptText + "他压低声音说道，“等结果出来再说。”",
+            "下一段的内容也足够长，用来占位。"
+        )
+        val excerpt = NostrReviewClient.NostrEvent(
+            id = "event-id",
+            pubkey = "pubkey",
+            content = excerptText,
+            createdAt = 1,
+            kind = 9802,
+            tags = emptyList()
+        )
+
+        val matches = NostrReviewClient.matchParagraphs(listOf(excerpt), paragraphs, chapterTitle = "")
+
+        assertEquals(setOf(2), matches.keys)
+    }
+
+    @Test
+    fun shortExcerptWithoutContextIsRejectedWhenRepeated() {
+        // 短句在章内多处完整出现且 context 分不开：宁缺毋滥。
+        val paragraphs = listOf(
+            "先把话题拉开，免得纯短句无法定位。",
+            "嗯。他说完就沉默了。",
+            "中间过渡一下，内容要够长才行。",
+            "换个场景再来一句，这里也够长了。",
+            "嗯。她把话咽了回去。",
+            "结尾段落内容足够长，可以结束了。"
+        )
+        val excerpt = NostrReviewClient.NostrEvent(
+            id = "event-id",
+            pubkey = "pubkey",
+            content = "嗯。",
+            createdAt = 1,
+            kind = 9802,
+            tags = emptyList()
+        )
+
+        val matches = NostrReviewClient.matchParagraphs(listOf(excerpt), paragraphs, chapterTitle = "")
+
+        assertTrue(matches.isEmpty())
+    }
+
+    @Test
+    fun shortExcerptUsesContextWhenRepeated() {
+        // 同上，但 context 指向第二处：靠 context 分消歧后落在第二处。
+        val paragraphs = listOf(
+            "先把话题拉开，免得纯短句无法定位。",
+            "嗯。他说完就沉默了。",
+            "中间过渡一下，内容要够长才行。",
+            "换个场景再来一句，这里也够长了。",
+            "嗯。她把话咽了回去。",
+            "结尾段落内容足够长，可以结束了。"
+        )
+        val excerpt = NostrReviewClient.NostrEvent(
+            id = "event-id",
+            pubkey = "pubkey",
+            content = "嗯。",
+            createdAt = 1,
+            kind = 9802,
+            tags = listOf(listOf("context", "换个场景再来一句，这里也够长了。嗯。"))
+        )
+
+        val matches = NostrReviewClient.matchParagraphs(listOf(excerpt), paragraphs, chapterTitle = "")
+
+        assertEquals(setOf(5), matches.keys)
+    }
 }

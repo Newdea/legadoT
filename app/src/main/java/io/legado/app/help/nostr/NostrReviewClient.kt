@@ -462,6 +462,11 @@ object NostrReviewClient {
      * 去空白后在整章文本里定位一段正文，返回与之重叠最大的段落下标。
      * 先找整段；整段找不到时退回中段定长窗口（长片段包含）。多处并列时 context 分高者优先，仍并列取靠前；
      * 重叠不足 [MIN_OVERLAP_LENGTH] 视为未命中。
+     *
+     * 去空白后不足 [MIN_FUZZY_LENGTH] 的短摘录单独处理：发布后段落可能被合并/拆分，
+     * 摘录只是现段落的一部分（常见于「只取到段首一句」）。此时整句落入某段即算命中，
+     * 重叠门槛降到摘录自身长度；同一句在章内多处出现时，只有 context 分唯一最高才接受，
+     * 否则放弃（避免「嗯。」这类短句乱挂）。
      */
     private fun fuzzyParagraphIndex(
         content: String,
@@ -471,8 +476,9 @@ object NostrReviewClient {
         contextScore: (Int) -> Int
     ): Int? {
         val condensed = compact(content)
-        if (condensed.length < MIN_FUZZY_LENGTH) return null
-        val needle = if (compactFull.contains(condensed)) {
+        if (condensed.isEmpty()) return null
+        val isShort = condensed.length < MIN_FUZZY_LENGTH
+        val needle = if (isShort || compactFull.contains(condensed)) {
             condensed
         } else {
             if (condensed.length <= FUZZY_WINDOW) return null
@@ -480,9 +486,9 @@ object NostrReviewClient {
             condensed.substring(from, from + FUZZY_WINDOW)
                 .takeIf { compactFull.contains(it) } ?: return null
         }
-        var bestIndex: Int? = null
-        var bestOverlap = 0
-        var bestContext = 0
+        val minOverlap = if (isShort) condensed.length else MIN_OVERLAP_LENGTH
+        // 先按段落聚合最大重叠，再在并列最优者里用 context 消歧。
+        val overlapByParagraph = LinkedHashMap<Int, Int>()
         var searchFrom = 0
         while (true) {
             val hit = compactFull.indexOf(needle, searchFrom)
@@ -492,19 +498,21 @@ object NostrReviewClient {
                 val paragraphStart = compactStarts[index]
                 val paragraphEnd = paragraphStart + text.length
                 val overlap = minOf(paragraphEnd, hitEnd) - maxOf(paragraphStart, hit)
-                if (overlap <= 0) return@forEachIndexed
-                val score = contextScore(index)
-                if (overlap > bestOverlap ||
-                    (overlap == bestOverlap && (bestIndex == null || score > bestContext))
-                ) {
-                    bestIndex = index
-                    bestOverlap = overlap
-                    bestContext = score
+                if (overlap > 0) {
+                    overlapByParagraph[index] = maxOf(overlapByParagraph[index] ?: 0, overlap)
                 }
             }
             searchFrom = hit + 1
         }
-        return if (bestIndex != null && bestOverlap >= MIN_OVERLAP_LENGTH) bestIndex else null
+        val bestOverlap = overlapByParagraph.values.maxOrNull() ?: return null
+        if (bestOverlap < minOverlap) return null
+        val candidates = overlapByParagraph.filterValues { it == bestOverlap }.keys
+        val scores = candidates.associateWith(contextScore)
+        val bestContext = scores.values.maxOrNull() ?: 0
+        val winners = candidates.filter { scores[it] == bestContext }
+        // 短摘录把「唯一性」当证据：同一句落在多处且 context 也分不开时宁缺毋滥。
+        if (isShort && winners.size > 1) return null
+        return winners.first()
     }
 
     private suspend fun queryComments(excerptIds: List<String>): List<NostrEvent> {
