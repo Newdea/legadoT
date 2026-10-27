@@ -1854,7 +1854,22 @@ class ReadBookActivity : BaseReadBookActivity(),
         // -1 identifies the chapter title; 0 is the only invalid paragraph id.
         if (paragraphNum == 0) return
         if (paragraphNum == ChapterProvider.REVIEW_ID_CHAPTER_END) {
-            showUnlocatedReviewDialog()
+            val key = ReadBook.book?.let { book ->
+                buildReviewSummaryKey(book, ReadBook.durChapterIndex)
+            }
+            val unlocatedCount = key?.let { summaryKey ->
+                synchronized(nostrReviewUnlocatedCache) {
+                    nostrReviewUnlocatedCache[summaryKey]?.size ?: 0
+                }
+            } ?: 0
+            if (unlocatedCount == 0) {
+                toastOnUi(getString(R.string.nostr_review))
+                return
+            }
+            // 与段评共用弹窗：列表可看、可点赞，但没有段落锚点，不能评论与回复。
+            showDialogFragment(
+                ReviewDetailDialog(paragraphNum, unlocatedCount, unlocated = true)
+            )
             return
         }
         if (count < 0) {
@@ -1886,42 +1901,6 @@ class ReadBookActivity : BaseReadBookActivity(),
             return
         }
         showDialogFragment(ReviewDetailDialog(paragraphNum, count))
-    }
-
-    /** 章末「未定位段评」入口：把本章未能定位到段落的评论汇总展示。 */
-    private fun showUnlocatedReviewDialog() {
-        val book = ReadBook.book ?: return
-        val key = buildReviewSummaryKey(book, ReadBook.durChapterIndex)
-        val comments = synchronized(nostrReviewUnlocatedCache) { nostrReviewUnlocatedCache[key] }
-        if (comments.isNullOrEmpty()) {
-            toastOnUi(getString(R.string.nostr_review))
-            return
-        }
-        val textView = TextView(this).apply {
-            text = buildString { appendUnlocatedComments(comments, 0) }
-            val pad = 16.dpToPx()
-            setPadding(pad, pad, pad, pad)
-            setTextIsSelectable(true)
-        }
-        AlertDialog.Builder(this)
-            .setTitle(R.string.nostr_review)
-            .setView(ScrollView(this).apply { addView(textView) })
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
-    }
-
-    private fun StringBuilder.appendUnlocatedComments(
-        comments: List<NostrReviewClient.Comment>,
-        depth: Int
-    ) {
-        val indent = "    ".repeat(depth)
-        comments.forEach { comment ->
-            append(indent).append(comment.name).append("  ").append(comment.time)
-            if (comment.likeCount > 0) append("  +").append(comment.likeCount)
-            append('\n')
-            append(indent).append(comment.content).append('\n')
-            appendUnlocatedComments(comment.replies, depth + 1)
-        }
     }
 
     override fun onStart() {

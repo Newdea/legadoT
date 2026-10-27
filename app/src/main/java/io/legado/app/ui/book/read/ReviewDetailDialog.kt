@@ -93,10 +93,11 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     /** 贴底弹窗自设背景(bg_dialog_round_top/bg_review_toolbar),豁免统一圆角模板 */
     override val dialogForm = DialogForm.SELF_MANAGED
 
-    constructor(paragraphNum: Int, totalCount: Int) : this() {
+    constructor(paragraphNum: Int, totalCount: Int, unlocated: Boolean = false) : this() {
         arguments = Bundle().apply {
             putInt("paragraphNum", paragraphNum)
             putInt("totalCount", totalCount)
+            putBoolean("unlocated", unlocated)
         }
     }
 
@@ -104,6 +105,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     private val adapter by lazy { ReviewAdapter(requireContext()) }
     private var paragraphNum: Int = 0
     private var totalCount: Int = 0
+    /** 章末「未定位段评」列表：只读展示本章未能定位到段落的评论，不能评论与回复。 */
+    private var unlocated: Boolean = false
     private var isLoading = false
     private var hasMore = true
     private var currentPage = 1
@@ -208,6 +211,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
     override fun onFragmentCreated(view: View, savedInstanceState: Bundle?) {
         paragraphNum = arguments?.getInt("paragraphNum") ?: 0
+        unlocated = arguments?.getBoolean("unlocated") ?: false
         reviewSortMode = requireContext().getPrefInt(PREF_REVIEW_SORT_MODE)
             .takeIf { it == SORT_NEW } ?: SORT_HOT
         totalCount = arguments?.getInt("totalCount") ?: 0
@@ -345,7 +349,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     }
 
     private fun addNostrCommentAction() {
-        if (!AppConfig.nostrReviewEnabled) return
+        // 未定位条目没有确定的段落锚点，发不了评论，不展示入口
+        if (unlocated || !AppConfig.nostrReviewEnabled) return
         binding.toolBar.findViewWithTag<View>("nostr_comment_action")?.let(binding.toolBar::removeView)
         val action = AppCompatImageButton(requireContext()).apply {
             tag = "nostr_comment_action"
@@ -413,6 +418,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
 
     /** 本段在应用级待发布存储里的 key；书未打开时无从定位。 */
     private fun pendingReviewKey(): String? {
+        // 未定位列表没有段落锚点（也不会插入占位），不参与待发布对账
+        if (unlocated) return null
         val book = ReadBook.book ?: return null
         return NostrPendingReviews.keyOf(book.bookUrl, ReadBook.durChapterIndex, paragraphNum)
     }
@@ -1282,7 +1289,8 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
             detailItems.clear()
             expandedReplyParentKeys.clear()
             // 普通打开先渲染首页缓存；手动刷新跳过缓存，等待联网快照替换旧数据。
-            val cached = if (allowCache) ReadBook.book?.let { book ->
+            // 未定位列表没有段落级缓存（集合随本章匹配结果变化），每次直接联网。
+            val cached = if (allowCache && !unlocated) ReadBook.book?.let { book ->
                 NostrReviewDetailCache.get(
                     NostrReviewDetailCache.key(book.bookUrl, ReadBook.durChapterIndex, paragraphNum)
                 )
@@ -1293,7 +1301,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                 mergeDetailItems(cached)
             }
             // 缓存并入后父项才就位，此时与待发布表对账：回复能挂到父项，否则退化为顶层
-            syncPendingItems()
+            if (!unlocated) syncPendingItems()
             if (detailItems.isNotEmpty()) {
                 binding.rotateLoading.gone()
                 renderUiItems()
@@ -1303,10 +1311,27 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
         if (!hasMore) return
         isLoading = true
         Coroutine.async(lifecycleScope, IO) {
-            val source = ReadBook.bookSource
             val book = ReadBook.book ?: return@async null
             val chapterIndex = ReadBook.durChapterIndex
             val chapter = appDb.bookChapterDao.getChapter(book.bookUrl, chapterIndex) ?: return@async null
+            if (unlocated) {
+                val paragraphs = ReadBook.curTextChapter
+                    ?.takeIf { it.chapter.index == chapterIndex }
+                    ?.paragraphTexts.orEmpty()
+                val details = runCatching {
+                    NostrReviewClient.loadUnlocatedDetails(book, chapter.title, paragraphs, page)
+                }.onFailure {
+                    if (it is CancellationException) throw it
+                    AppLog.put("加载未定位段评失败\n${it.localizedMessage}", it)
+                }.getOrNull() ?: return@async null
+                return@async ReviewResult(
+                    items = NostrReviewDetailCache.toItems(details.items),
+                    nextPageUrl = if (details.hasMore) NOSTR_MORE_PAGE else null,
+                    hasNextPageRule = true,
+                    refreshedNostr = true
+                )
+            }
+            val source = ReadBook.bookSource
             val rawKey = ChapterProvider.getReviewKeyById(paragraphNum)
             val paraData = rawKey?.takeIf { it.isNotBlank() } ?: ""
             val sourceResult = if (source == null) null else try {
@@ -1524,6 +1549,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
     }
 
     private fun cacheCurrentDetailItems() {
+        if (unlocated) return
         val book = ReadBook.book ?: return
         val cacheKey = NostrReviewDetailCache.key(
             book.bookUrl, ReadBook.durChapterIndex, paragraphNum
@@ -2216,7 +2242,7 @@ class ReviewDetailDialog() : BaseDialogFragment(R.layout.dialog_recycler_view) {
                 context.getString(R.string.nostr_comment_reply_to, it)
             } ?: ""
             binding.tvContent.text = item.content.orEmpty()
-            val canReply = item.pendingState == null &&
+            val canReply = !unlocated && item.pendingState == null &&
                     !item.nostrAuthorPubkey.isNullOrBlank() &&
                     item.level < MAX_REPLY_LEVEL
             // 回复按钮统一放在时间行，主评论与回复项保持一致

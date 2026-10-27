@@ -191,50 +191,54 @@ object NostrReviewClient {
         val excerptIds = matching.map { it.id }.distinct()
         val comments = queryComments(excerptIds)
         val reactions = queryReactions(comments.map { it.id })
-        val likeCounts = reactions.filter { it.content == "+" }
-            .groupBy { it.tagValues("e").firstOrNull().orEmpty() }
-            .mapValues { (_, events) -> events.distinctBy { it.pubkey }.size }
-        val myPubkey = NostrSigners.currentPubkey()
-        val likedIds: Set<String> = if (myPubkey.isNullOrBlank()) {
-            emptySet()
-        } else {
-            reactions.filter { it.content == "+" && it.pubkey == myPubkey }
-                .mapNotNull { it.tagValues("e").firstOrNull() }
-                .toSet()
-        }
-        // 自己那条 reaction 的事件 id，用于再次点击时按 NIP-09 删除
-        val myReactionIds: Map<String, String> = if (myPubkey.isNullOrBlank()) {
-            emptyMap()
-        } else {
-            reactions.filter { it.content == "+" && it.pubkey == myPubkey }
-                .mapNotNull { event ->
-                    event.tagValues("e").firstOrNull()?.let { commentId -> commentId to event.id }
-                }
-                .toMap()
-        }
+        val likes = reactionState(reactions)
         val excerptAuthors = matching.associate { it.id to it.pubkey }
-        // 建树以「本段全部评论」为上下文：回复的父评论可能属于同段的另一条摘录，
-        // 只按单条摘录分组会把这类回复当成孤儿丢掉，出现「计数有、列表无」。
-        val roots = excerptIds.flatMap { excerptId ->
-            buildThread(comments, excerptId, excerptAuthors[excerptId].orEmpty())
-        }
-        // 兜底：父评论不在本段评论集合里的（跨摘录/父事件取不到/深于层级上限）挂到顶层，
-        // 保证统计里数到的评论都能显示出来。
-        val reachableIds = HashSet<String>()
-        fun markReachable(list: List<NostrEvent>) {
-            list.forEach { event ->
-                reachableIds.add(event.id)
-                markReachable(event.children)
-            }
-        }
-        markReachable(roots)
-        val rescued = comments.filterNot { it.id in reachableIds }
-            .map { it.copy(children = emptyList()) }
-        val allRoots = (roots + rescued).sortedByDescending { it.createdAt }
+        val allRoots = buildRoots(comments, excerptIds, excerptAuthors)
         val pageSize = 20
         val pageItems = allRoots.drop((page - 1).coerceAtLeast(0) * pageSize).take(pageSize)
         return Details(
-            items = pageItems.map { it.toComment(likeCounts, likedIds, myReactionIds) },
+            items = pageItems.map {
+                it.toComment(likes.likeCounts, likes.likedIds, likes.myReactionIds)
+            },
+            hasMore = allRoots.size > page.coerceAtLeast(1) * pageSize
+        )
+    }
+
+    /**
+     * 章末未定位段评的详情列表：属于本章、但没能匹配到任何段落的摘录下的评论。
+     * 与 [loadDetails] 同一套楼中楼与点赞规则，分页也一致。
+     */
+    suspend fun loadUnlocatedDetails(
+        book: Book,
+        chapterTitle: String,
+        paragraphs: List<String>,
+        page: Int
+    ): Details {
+        if (paragraphs.isEmpty()) return Details(emptyList(), false)
+        val excerpts = queryEvents(
+            JSONObject()
+                .put("kinds", JSONArray().put(9802))
+                .put("#i", JSONArray(bookIdentifiers(book.name, book.author)))
+                .put("limit", 1000)
+        )
+        val unlocated = chapterUnlocated(
+            excerpts,
+            matchParagraphs(excerpts, paragraphs, chapterTitle),
+            chapterTitle
+        )
+        val excerptIds = unlocated.map { it.id }.distinct()
+        if (excerptIds.isEmpty()) return Details(emptyList(), false)
+        val comments = queryComments(excerptIds)
+        val reactions = queryReactions(comments.map { it.id })
+        val likes = reactionState(reactions)
+        val excerptAuthors = unlocated.associate { it.id to it.pubkey }
+        val allRoots = buildRoots(comments, excerptIds, excerptAuthors)
+        val pageSize = 20
+        val pageItems = allRoots.drop((page - 1).coerceAtLeast(0) * pageSize).take(pageSize)
+        return Details(
+            items = pageItems.map {
+                it.toComment(likes.likeCounts, likes.likedIds, likes.myReactionIds)
+            },
             hasMore = allRoots.size > page.coerceAtLeast(1) * pageSize
         )
     }
@@ -622,6 +626,56 @@ object NostrReviewClient {
                 }
             }
         }
+
+    /** 点赞态：总数、我赞过的、我那条 reaction 的事件 id（再次点击时按 NIP-09 删除）。 */
+    private data class ReactionState(
+        val likeCounts: Map<String, Int>,
+        val likedIds: Set<String>,
+        val myReactionIds: Map<String, String>
+    )
+
+    private fun reactionState(reactions: List<NostrEvent>): ReactionState {
+        val likeCounts = reactions.filter { it.content == "+" }
+            .groupBy { it.tagValues("e").firstOrNull().orEmpty() }
+            .mapValues { (_, events) -> events.distinctBy { it.pubkey }.size }
+        val myPubkey = NostrSigners.currentPubkey()
+        if (myPubkey.isNullOrBlank()) return ReactionState(likeCounts, emptySet(), emptyMap())
+        val myReactions = reactions.filter { it.content == "+" && it.pubkey == myPubkey }
+        return ReactionState(
+            likeCounts = likeCounts,
+            likedIds = myReactions.mapNotNull { it.tagValues("e").firstOrNull() }.toSet(),
+            myReactionIds = myReactions.mapNotNull { event ->
+                event.tagValues("e").firstOrNull()?.let { commentId -> commentId to event.id }
+            }.toMap()
+        )
+    }
+
+    /**
+     * 建树以「本次查询到的全部评论」为上下文：回复的父评论可能属于另一条摘录，
+     * 只按单条摘录分组会把这类回复当成孤儿丢掉，出现「计数有、列表无」。
+     * 兜底：父评论不在集合里的（跨摘录/父事件取不到/深于层级上限）挂到顶层，
+     * 保证统计里数到的评论都能显示出来。
+     */
+    private fun buildRoots(
+        comments: List<NostrEvent>,
+        excerptIds: List<String>,
+        excerptAuthors: Map<String, String>
+    ): List<NostrEvent> {
+        val roots = excerptIds.flatMap { excerptId ->
+            buildThread(comments, excerptId, excerptAuthors[excerptId].orEmpty())
+        }
+        val reachableIds = HashSet<String>()
+        fun markReachable(list: List<NostrEvent>) {
+            list.forEach { event ->
+                reachableIds.add(event.id)
+                markReachable(event.children)
+            }
+        }
+        markReachable(roots)
+        val rescued = comments.filterNot { it.id in reachableIds }
+            .map { it.copy(children = emptyList()) }
+        return (roots + rescued).sortedByDescending { it.createdAt }
+    }
 
     private fun buildThread(
         events: List<NostrEvent>,
